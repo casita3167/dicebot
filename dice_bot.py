@@ -471,6 +471,65 @@ async def handle_roll(message, roll_expr, target_type='channel'):
 
 async def handle_dot_command(message, cmd):
     """處理點命令，回傳 True 表示已處理"""
+    # .help 說明
+    if cmd.startswith('help'):
+        help_text = """
+**📖 D!ce 機器人使用說明**
+
+**🎲 通用骰子指令**
+`xDy` - 擲 x 粒 y 面骰，例如 `2D6`
+`xDy kh/kl/dh/dl` - 保留/放棄最高/最低骰，例如 `4D6kh1`（保留最大1粒）
+`xDy >= t` - 篩選出符合條件的骰子，例如 `3D6>=4`
+`xBy` - 不加總的骰子，例如 `5B10`，可加 `S` 排序，`>=t` 篩選
+`xUy z` - 獎勵骰系統，例如 `5U10 5`
+`D66`, `D66s`, `D66n` - 六面骰組合
+
+**🔢 多重擲骰**
+`.次數 骰子指令` - 例如 `.5 3D6`（最多30次）
+
+**🎯 CoC 七版檢定**
+`.cc 技能值 [技能名稱]` - 普通檢定
+`.cc1 技能值` - 1粒獎勵骰（顯示所有骰值取最低）
+`.cc2 技能值` - 2粒獎勵骰
+`.ccn1 技能值` - 1粒懲罰骰（取最高）
+`.ccn2 技能值` - 2粒懲罰骰
+支援聯合檢定：`.cc 80,60 鬥毆,魅惑`
+多次檢定：`.10 cc 20`
+
+**🧠 理智檢定**
+`.sc 目前SAN 成功損失 失敗損失` - 例如 `.sc 50 0 1d6`
+
+**📈 成長檢定**
+`.dp 技能值 技能名稱` - 失敗才成長1d10，例如 `.dp 50 騎乘 60 鬥毆`
+
+**📐 計算功能**
+`.calc 表達式` - 支援骰子，例如 `.calc (1D100+5)/2`
+直接輸入算式：`1d3+2` → `[3]+2=5`
+
+**🔒 暗骰（私訊）**
+`dr 指令` - 結果私訊給自己
+`ddr 指令` - 私訊給 GM 與自己
+`dddr 指令` - 僅私訊給 GM（執行者若非 GM 不收）
+（指令可為 `cc`, `1D100`, `.sc`, `.dp` 等）
+
+**👑 GM 管理**
+`.drgm addgm [化名]` - 登記為 GM
+`.drgm show` - 顯示 GM 列表
+`.drgm del 編號/all` - 刪除 GM
+
+**🔧 自訂指令**
+`.cmd add 關鍵字 指令` - 例如 `.cmd add 戰鬥 cc 80 鬥毆`
+`.cmd 關鍵字` - 執行自訂指令
+`.cmd show/del/edit` - 管理自訂指令
+
+**🎲 其他**
+`.int 最小 最大` - 隨機整數
+`.help` - 顯示此說明
+"""
+        await message.channel.send(help_text)
+        return True
+
+    # 多重擲骰 .次數 指令
     multi_match = re.match(r'^(\d+)\s+(.+)$', cmd)
     if multi_match:
         times = int(multi_match.group(1))
@@ -750,7 +809,7 @@ async def handle_dot_command(message, cmd):
         await message.channel.send(f"指令 `{cmd.split()[0]}` 正在開發中，請期待後續版本。")
         return True
 
-    await message.channel.send("未知的點命令。可用命令：.次數 骰子, .int, .coc, .sc, .dp, .drgm, .cmd, .calc")
+    await message.channel.send("未知的點命令。輸入 `.help` 查看所有功能。")
     return True
 
 @bot.event
@@ -774,6 +833,64 @@ async def on_message(message, custom_content=None):
         return
 
     lower_content = content.lower()
+    # 處理無點的 help 指令
+    if lower_content == 'help':
+        help_text = """
+**📖 D!ce 機器人使用說明**
+
+**🎲 通用骰子指令**
+`xDy` - 擲 x 粒 y 面骰，例如 `2D6`
+`xDy kh/kl/dh/dl` - 保留/放棄最高/最低骰，例如 `4D6kh1`（保留最大1粒）
+`xDy >= t` - 篩選出符合條件的骰子，例如 `3D6>=4`
+`xBy` - 不加總的骰子，例如 `5B10`，可加 `S` 排序，`>=t` 篩選
+`xUy z` - 獎勵骰系統，例如 `5U10 5`
+`D66`, `D66s`, `D66n` - 六面骰組合
+
+**🔢 多重擲骰**
+`.次數 骰子指令` - 例如 `.5 3D6`（最多30次）
+
+**🎯 CoC 七版檢定**
+`.cc 技能值 [技能名稱]` - 普通檢定
+`.cc1 技能值` - 1粒獎勵骰（顯示所有骰值取最低）
+`.cc2 技能值` - 2粒獎勵骰
+`.ccn1 技能值` - 1粒懲罰骰（取最高）
+`.ccn2 技能值` - 2粒懲罰骰
+支援聯合檢定：`.cc 80,60 鬥毆,魅惑`
+多次檢定：`.10 cc 20`
+
+**🧠 理智檢定**
+`.sc 目前SAN 成功損失 失敗損失` - 例如 `.sc 50 0 1d6`
+
+**📈 成長檢定**
+`.dp 技能值 技能名稱` - 失敗才成長1d10，例如 `.dp 50 騎乘 60 鬥毆`
+
+**📐 計算功能**
+`.calc 表達式` - 支援骰子，例如 `.calc (1D100+5)/2`
+直接輸入算式：`1d3+2` → `[3]+2=5`
+
+**🔒 暗骰（私訊）**
+`dr 指令` - 結果私訊給自己
+`ddr 指令` - 私訊給 GM 與自己
+`dddr 指令` - 僅私訊給 GM（執行者若非 GM 不收）
+（指令可為 `cc`, `1D100`, `.sc`, `.dp` 等）
+
+**👑 GM 管理**
+`.drgm addgm [化名]` - 登記為 GM
+`.drgm show` - 顯示 GM 列表
+`.drgm del 編號/all` - 刪除 GM
+
+**🔧 自訂指令**
+`.cmd add 關鍵字 指令` - 例如 `.cmd add 戰鬥 cc 80 鬥毆`
+`.cmd 關鍵字` - 執行自訂指令
+`.cmd show/del/edit` - 管理自訂指令
+
+**🎲 其他**
+`.int 最小 最大` - 隨機整數
+`.help` - 顯示此說明
+"""
+        await message.channel.send(help_text)
+        return
+
     # dddr
     if lower_content.startswith('dddr '):
         expr = content[5:].strip()
@@ -963,14 +1080,14 @@ async def on_message(message, custom_content=None):
         await handle_dot_command(message, cmd)
         return
 
-    # ---------- 重要修正：先嘗試將整段訊息當作骰子表達式解析（支援修飾符與比較）----------
+    # 嘗試將整段訊息當作骰子表達式解析
     dice_res = parse_dice_expression(content)
     if dice_res is not None:
         output = f"{message.author.display_name} 擲骰：\n{dice_res.format()}"
         await message.channel.send(output)
         return
 
-    # 若整體解析失敗，再嘗試分離骰子部分與附帶文字（向後相容）
+    # 向後相容：分離骰子部分與附帶文字
     dice_pattern = re.compile(r'^([0-9]+[DBU][0-9]+[Ss]?(?:\s+[0-9]+)?|D66[sn]?)', re.I)
     match = dice_pattern.match(content)
     if match:
