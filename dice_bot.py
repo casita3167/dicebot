@@ -6,29 +6,30 @@ import ast
 import json
 import os
 from collections import defaultdict
-from dotenv import load_dotenv
-
-# 讀取 .env 檔案（本地開發用）
-load_dotenv()
 
 # ---------- 骰子核心函式 ----------
 class DiceResult:
-    def __init__(self, raw_expr, rolls, total=None, text=None, success=None, details=None):
+    def __init__(self, raw_expr, rolls, total=None, text=None, success=None, details=None, filtered_rolls=None):
         self.raw_expr = raw_expr
         self.rolls = rolls
         self.total = total
         self.text = text
         self.success = success
         self.details = details
+        self.filtered_rolls = filtered_rolls
 
     def format(self):
+        rolls_str = ', '.join(map(str, self.rolls))
         if self.total is not None:
-            if self.success is not None:
-                return f"{self.raw_expr}：{self.text or ''} {self.total} [{', '.join(map(str, self.rolls))}] 成功數 {self.success}"
-            else:
-                return f"{self.raw_expr}：{self.text or ''} {self.total} [{', '.join(map(str, self.rolls))}]"
+            base = f"{self.raw_expr}：{self.text or ''} {self.total} [{rolls_str}]"
         else:
-            return f"{self.raw_expr}：{self.text or ''} {', '.join(map(str, self.rolls))}"
+            base = f"{self.raw_expr}：{self.text or ''} {rolls_str}"
+        if self.filtered_rolls is not None and len(self.filtered_rolls) > 0:
+            filtered_str = ', '.join(map(str, self.filtered_rolls))
+            base += f"\n符合條件：{filtered_str}"
+        if self.success is not None:
+            base += f" 成功數 {self.success}"
+        return base
 
 def roll_dice(sides):
     return random.randint(1, sides)
@@ -52,7 +53,7 @@ def parse_modifiers(expr):
             drop = int(mod_match.group(4)) if mod_match.group(4) else 1
             drop_low = True
         expr = expr[:mod_match.start()]
-    comp_pattern = re.compile(r'([<>]=?|==)(-?\d+(?:\.\d+)?)$')
+    comp_pattern = re.compile(r'([<>]=?|==|!=)(-?\d+(?:\.\d+)?)$')
     comp_match = comp_pattern.search(expr)
     comp_op = None
     comp_val = None
@@ -95,19 +96,28 @@ def dice_dy(expr):
         calc_total = evaluate_arithmetic(base_expr, total)
         if calc_total is not None:
             total = calc_total
+    filtered = None
     success = None
     if comp_op:
         if comp_op == '>':
-            success = total > comp_val
+            filtered = [r for r in rolls if r > comp_val]
+            success = len(filtered)
         elif comp_op == '<':
-            success = total < comp_val
+            filtered = [r for r in rolls if r < comp_val]
+            success = len(filtered)
         elif comp_op == '>=':
-            success = total >= comp_val
+            filtered = [r for r in rolls if r >= comp_val]
+            success = len(filtered)
         elif comp_op == '<=':
-            success = total <= comp_val
+            filtered = [r for r in rolls if r <= comp_val]
+            success = len(filtered)
         elif comp_op == '==':
-            success = total == comp_val
-    return DiceResult(expr, rolls, total, success=success)
+            filtered = [r for r in rolls if r == comp_val]
+            success = len(filtered)
+        elif comp_op == '!=':
+            filtered = [r for r in rolls if r != comp_val]
+            success = len(filtered)
+    return DiceResult(expr, rolls, total, success=success, filtered_rolls=filtered)
 
 def dice_by(expr):
     m = re.match(r'^(\d+)B(\d+)([Ss]?)(.*)$', expr, re.I)
@@ -125,8 +135,8 @@ def dice_by(expr):
         if rest.startswith('D'):
             comp_op = '<='
             comp_val = float(rest[1:])
-        elif rest.startswith(('>', '<', '=')):
-            m_comp = re.match(r'([<>]=?|==)(-?\d+(?:\.\d+)?)', rest)
+        elif rest.startswith(('>', '<', '=', '!')):
+            m_comp = re.match(r'([<>]=?|==|!=)(-?\d+(?:\.\d+)?)', rest)
             if m_comp:
                 comp_op = m_comp.group(1)
                 comp_val = float(m_comp.group(2))
@@ -139,19 +149,28 @@ def dice_by(expr):
     rolls = [roll_dice(sides) for _ in range(count)]
     if sort_flag:
         rolls.sort(reverse=True)
+    filtered = None
     success = None
     if comp_op:
         if comp_op == '>':
-            success = sum(1 for r in rolls if r > comp_val)
+            filtered = [r for r in rolls if r > comp_val]
+            success = len(filtered)
         elif comp_op == '<':
-            success = sum(1 for r in rolls if r < comp_val)
+            filtered = [r for r in rolls if r < comp_val]
+            success = len(filtered)
         elif comp_op == '>=':
-            success = sum(1 for r in rolls if r >= comp_val)
+            filtered = [r for r in rolls if r >= comp_val]
+            success = len(filtered)
         elif comp_op == '<=':
-            success = sum(1 for r in rolls if r <= comp_val)
+            filtered = [r for r in rolls if r <= comp_val]
+            success = len(filtered)
         elif comp_op == '==':
-            success = sum(1 for r in rolls if r == comp_val)
-    return DiceResult(expr, rolls, total=None, success=success, details={'sorted': sort_flag})
+            filtered = [r for r in rolls if r == comp_val]
+            success = len(filtered)
+        elif comp_op == '!=':
+            filtered = [r for r in rolls if r != comp_val]
+            success = len(filtered)
+    return DiceResult(expr, rolls, total=None, success=success, details={'sorted': sort_flag}, filtered_rolls=filtered)
 
 def dice_d66(subtype=''):
     d1 = roll_dice(6)
@@ -452,15 +471,12 @@ async def handle_roll(message, roll_expr, target_type='channel'):
 
 async def handle_dot_command(message, cmd):
     """處理點命令，回傳 True 表示已處理"""
-    # 多重擲骰 .次數 指令（支援一般骰子與 CoC 指令）
     multi_match = re.match(r'^(\d+)\s+(.+)$', cmd)
     if multi_match:
         times = int(multi_match.group(1))
         rest = multi_match.group(2).strip()
-        # 判斷是否為 CoC 指令
         cc_match = re.match(r'^(cc(?:[12]?|n[12]?)?)(?:\s+(.*))?$', rest, re.I)
         if cc_match:
-            # 多次 CoC 檢定
             cmd_part = cc_match.group(1).lower()
             args = cc_match.group(2) or ""
             bonus_dice = 0
@@ -758,6 +774,7 @@ async def on_message(message, custom_content=None):
         return
 
     lower_content = content.lower()
+    # dddr
     if lower_content.startswith('dddr '):
         expr = content[5:].strip()
         if parse_dice_expression(expr) is not None:
@@ -821,6 +838,7 @@ async def on_message(message, custom_content=None):
                 await message.channel.send("目前暗骰僅支援 CoC 指令 (cc)，其他指令請使用點命令前綴。")
         return
 
+    # ddr
     if lower_content.startswith('ddr '):
         expr = content[4:].strip()
         if parse_dice_expression(expr) is not None:
@@ -883,6 +901,7 @@ async def on_message(message, custom_content=None):
                 await message.channel.send("目前暗骰僅支援 CoC 指令 (cc)，其他指令請使用點命令前綴。")
         return
 
+    # dr
     if lower_content.startswith('dr '):
         expr = content[3:].strip()
         if parse_dice_expression(expr) is not None:
@@ -930,6 +949,7 @@ async def on_message(message, custom_content=None):
                 await message.channel.send("目前暗骰僅支援 CoC 指令 (cc)，其他指令請使用點命令前綴。")
         return
 
+    # 不帶點的 cc 家族指令 (公開)
     cc_match = re.match(r'^(cc(?:[12]?|n[12]?)?)(?:\s+(.*))?$', content, re.I)
     if cc_match:
         cmd_part = cc_match.group(1).lower()
@@ -943,52 +963,31 @@ async def on_message(message, custom_content=None):
         await handle_dot_command(message, cmd)
         return
 
-    dice_calc_pattern = re.compile(r'^(\d+[DBU]\d+[Ss]?(?:\s+\d+)?|D66[sn]?)([\+\-\*\/\%\*\*\(\)].*)$', re.I)
-    match_calc = dice_calc_pattern.match(content)
-    if match_calc:
-        dice_part = match_calc.group(1)
-        rest_expr = match_calc.group(2).strip()
-        dice_res = parse_dice_expression(dice_part)
-        if dice_res and dice_res.total is not None:
-            dice_value = dice_res.total
-        elif dice_res and dice_res.rolls:
-            dice_value = sum(dice_res.rolls)
-        else:
-            await message.channel.send(f"無法解析骰子：{dice_part}")
-            return
-        full_expr = str(dice_value) + rest_expr
-        try:
-            allowed_nodes = (ast.Expression, ast.BinOp, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow,
-                             ast.UnaryOp, ast.USub, ast.Constant)
-            tree = ast.parse(full_expr, mode='eval')
-            for node in ast.walk(tree):
-                if not isinstance(node, allowed_nodes):
-                    raise ValueError("不允許的運算")
-            result = eval(compile(tree, '<string>', 'eval'))
-            output = f"{message.author.display_name} 擲骰：\n[{dice_value}]{rest_expr} = {result}"
-            await message.channel.send(output)
-        except Exception as e:
-            await message.channel.send(f"表達式錯誤：{e}")
+    # ---------- 重要修正：先嘗試將整段訊息當作骰子表達式解析（支援修飾符與比較）----------
+    dice_res = parse_dice_expression(content)
+    if dice_res is not None:
+        output = f"{message.author.display_name} 擲骰：\n{dice_res.format()}"
+        await message.channel.send(output)
         return
 
+    # 若整體解析失敗，再嘗試分離骰子部分與附帶文字（向後相容）
     dice_pattern = re.compile(r'^([0-9]+[DBU][0-9]+[Ss]?(?:\s+[0-9]+)?|D66[sn]?)', re.I)
     match = dice_pattern.match(content)
     if match:
         dice_part = match.group(1)
         text_part = content[match.end():].strip()
-        res = parse_dice_expression(dice_part)
-        if res:
-            res.text = text_part if text_part else None
-            output = f"{message.author.display_name} 擲骰：\n{res.format()}"
+        dice_res = parse_dice_expression(dice_part)
+        if dice_res:
+            dice_res.text = text_part if text_part else None
+            output = f"{message.author.display_name} 擲骰：\n{dice_res.format()}"
             await message.channel.send(output)
         else:
             await message.channel.send(f"無法解析骰子指令：{dice_part}")
         return
 
 if __name__ == "__main__":
-    # 從環境變數讀取 Discord Token
     TOKEN = os.getenv('DISCORD_TOKEN')
     if not TOKEN:
-        print("錯誤：找不到 DISCORD_TOKEN 環境變數。請在 Railway 設定 Variables 或在本機建立 .env 檔案。")
+        print("錯誤：找不到 DISCORD_TOKEN 環境變數。請在 Railway 設定 Variables 或在本機執行前設定環境變數。")
         exit(1)
     bot.run(TOKEN)
