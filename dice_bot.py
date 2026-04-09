@@ -192,11 +192,7 @@ async def send_private(user, content, alias_name=None, orig_author=None):
         dm = await user.create_dm()
         await dm.send(content)
         return True
-    except discord.Forbidden:
-        # 使用者禁止私訊
-        return False
-    except Exception as e:
-        # 其他錯誤，可記錄
+    except:
         return False
 
 # ---------- 骰表儲存管理 ----------
@@ -355,9 +351,8 @@ async def _send_private_result(message, output, target):
                         user = await message.guild.fetch_member(uid)
                     except:
                         continue
-            if user:
-                if await send_private(user, f"{message.author.display_name} 暗骰：\n{output}", alias, message.author):
-                    ok += 1
+            if user and await send_private(user, f"{message.author.display_name} 暗骰：\n{output}", alias, message.author):
+                ok += 1
         if ok:
             await message.add_reaction('📬')
         else:
@@ -435,49 +430,60 @@ async def handle_roll(message, roll_expr, target='channel'):
         else:
             await send_embed(message, "❌ 私訊失敗", desc="無法私訊給任何 GM。", color=0xff0000)
 
-# ---------- 骰表查詢與儲存 ----------
+# ---------- 骰表查詢與儲存（支援單行逗號分隔） ----------
 async def roll_table(message, args):
-    parts = args.split(maxsplit=1)
-    if not parts:
-        await send_embed(message, "❌ 格式錯誤", desc=".rt 序號 [骰子] 或 .rt save/list/del", color=0xff0000)
+    if not args:
+        await send_embed(message, "📋 骰表指令說明", desc="`.rt save 名稱 骰子 選項1,選項2,...`\n`.rt list`\n`.rt del 序號/名稱`\n`.rt 序號 [骰子]`", color=0x00aaff)
         return
+
+    parts = args.split(maxsplit=1)
     first = parts[0].lower()
     rest = parts[1] if len(parts) > 1 else ""
 
-    # 儲存
     if first == 'save':
-        save_parts = rest.split(maxsplit=1)
+        # 解析: 名稱, 骰子, 選項列表（可選）
+        save_parts = rest.split(maxsplit=2)
         if len(save_parts) < 2:
-            await send_embed(message, "❌ 格式錯誤", desc=".rt save 名稱 骰子表達式\n然後換行輸入選項（每行一個）", color=0xff0000)
+            await send_embed(message, "❌ 格式錯誤", desc=".rt save 名稱 骰子 選項1,選項2,...", color=0xff0000)
             return
         name = save_parts[0]
         dice_expr = save_parts[1]
-        lines = message.content.strip().split('\n')
-        if len(lines) < 2:
-            await send_embed(message, "❌ 缺少選項", desc="請在下一行開始輸入選項", color=0xff0000)
-            return
-        opts = [l.strip() for l in lines[1:] if l.strip()]
+        if len(save_parts) >= 3:
+            opts_str = save_parts[2]
+            opts = [opt.strip() for opt in opts_str.split(',') if opt.strip()]
+        else:
+            # 多行模式（備用）
+            lines = message.content.strip().split('\n')
+            if len(lines) > 1:
+                opts = [line.strip() for line in lines[1:] if line.strip()]
+            else:
+                await send_embed(message, "❌ 缺少選項", desc="請在同一行用逗號分隔選項，或換行輸入選項", color=0xff0000)
+                return
+
         if not opts:
             await send_embed(message, "❌ 無選項", color=0xff0000)
             return
+
         mapping = {}
         auto = 1
         for opt in opts:
             m = re.match(r'^(\d+)[:：\s]+(.*)$', opt)
             if m:
-                mapping[int(m.group(1))] = m.group(2).strip()
+                idx = int(m.group(1))
+                text = m.group(2).strip()
+                mapping[idx] = text
             else:
                 mapping[auto] = opt
                 auto += 1
+
         table_mgr.add(message.author.id, name, dice_expr, mapping)
         await send_embed(message, "✅ 骰表已儲存", desc=f"名稱：{name}\n骰子：{dice_expr}\n選項數：{len(mapping)}", color=0x00aa00)
         return
 
-    # 列表
     if first == 'list':
         tables = table_mgr.list(message.author.id)
         if not tables:
-            await send_embed(message, "📋 您還沒有儲存任何骰表", desc="使用 `.rt save 名稱 骰子` 來儲存", color=0xffaa00)
+            await send_embed(message, "📋 您還沒有儲存任何骰表", desc="使用 `.rt save 名稱 骰子 選項1,選項2,...` 來儲存", color=0xffaa00)
             return
         desc = ""
         for idx, t in enumerate(tables):
@@ -485,7 +491,6 @@ async def roll_table(message, args):
         await send_embed(message, "📋 您的骰表列表", desc=desc, footer=message.author.display_name)
         return
 
-    # 刪除
     if first == 'del':
         if not rest:
             await send_embed(message, "❌ 請提供要刪除的序號或名稱", color=0xff0000)
@@ -553,12 +558,10 @@ async def handle_dot_command(message, cmd):
         ], footer=message.author.display_name)
         return
 
-    # 骰表
     if cmd.startswith(('rt', 'rolltable')):
         await roll_table(message, cmd[2:].strip() if cmd.startswith('rt') else cmd[8:].strip())
         return
 
-    # 快速查表 .rtx
     if cmd.startswith('rtx'):
         args = cmd[3:].strip()
         parts = args.split(maxsplit=1)
@@ -601,7 +604,6 @@ async def handle_dot_command(message, cmd):
             await send_embed(message, "❌ 骰值超出範圍", desc=f"骰出 {val}，有效編號 {min(options)}～{max(options)}", color=0xff0000)
         return
 
-    # 多重擲骰
     mm = re.match(r'^(\d+)\s+(.+)$', cmd)
     if mm:
         times, rest = int(mm.group(1)), mm.group(2).strip()
