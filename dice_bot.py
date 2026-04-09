@@ -286,7 +286,7 @@ def roll_dice_expr(expr):
 async def san_check(message, args):
     parts = args.split()
     if len(parts) < 3:
-        await message.channel.send("格式：`.sc 目前SAN 成功損失 失敗損失`\n例如：`.sc 50 0 1d6` 或 `.sc 70 1 1d4+1`")
+        await message.channel.send(f"{message.author.mention} 格式錯誤：`.sc 目前SAN 成功損失 失敗損失`\n例如：`.sc 50 0 1d6` 或 `.sc 70 1 1d4+1`")
         return
     current_san = int(parts[0])
     success_loss = parts[1]
@@ -299,16 +299,16 @@ async def san_check(message, args):
         loss = roll_dice_expr(fail_loss)
         result_text = f"理智檢定失敗！損失 {loss} 點 SAN。"
     new_san = current_san - loss
-    output = f"**SAN 檢定**\n目前 SAN：{current_san}\n擲骰：{roll}\n{result_text}\n剩餘 SAN：{new_san}"
+    output = f"{message.author.mention} **SAN 檢定**\n目前 SAN：{current_san}\n擲骰：{roll}\n{result_text}\n剩餘 SAN：{new_san}"
     await message.channel.send(output)
 
 async def development_check(message, args):
     if not args:
-        await message.channel.send("請提供技能值與名稱，例如：`.dp 50 騎乘 60 鬥毆`")
+        await message.channel.send(f"{message.author.mention} 請提供技能值與名稱，例如：`.dp 50 騎乘 60 鬥毆`")
         return
     tokens = args.split()
     if len(tokens) % 2 != 0:
-        await message.channel.send("參數必須成對：技能值 名稱")
+        await message.channel.send(f"{message.author.mention} 參數必須成對：技能值 名稱")
         return
     results = []
     for i in range(0, len(tokens), 2):
@@ -324,10 +324,10 @@ async def development_check(message, args):
         else:
             results.append(f"{skill_name} ({skill_val}%) → 成長檢定 {growth_roll} 成功（或持平），未成長")
     if results:
-        output = "**成長檢定（失敗才成長）**\n" + "\n".join(results)
+        output = f"{message.author.mention} **成長檢定（失敗才成長）**\n" + "\n".join(results)
         await message.channel.send(output)
     else:
-        await message.channel.send("無法解析技能，請使用：`.dp 技能值 技能名稱`")
+        await message.channel.send(f"{message.author.mention} 無法解析技能，請使用：`.dp 技能值 技能名稱`")
 
 # ---------- GM 管理 ----------
 class GMManager:
@@ -427,13 +427,13 @@ async def send_private(ctx_or_msg, user, content):
 async def handle_roll(message, roll_expr, target_type='channel'):
     res = parse_dice_expression(roll_expr)
     if not res:
-        await message.channel.send(f"無效的骰子指令：{roll_expr}")
+        await message.channel.send(f"{message.author.mention} 無效的骰子指令：{roll_expr}")
         return
-    output = f"{message.author.display_name} 擲骰：\n{res.format()}"
+    output = f"{message.author.mention} 擲骰：\n{res.format()}"
     if target_type == 'channel':
         await message.channel.send(output)
     elif target_type == 'self':
-        await send_private(message, message.author, output)
+        await send_private(message, message.author, f"{message.author.display_name} 擲骰：\n{res.format()}")
         await message.add_reaction('📬')
     elif target_type == 'gm':
         gms = gm_manager.get_gm_users(message.guild.id)
@@ -442,10 +442,10 @@ async def handle_roll(message, roll_expr, target_type='channel'):
                 gm_user = message.guild.get_member(gm_id)
                 if gm_user:
                     await send_private(message, gm_user, f"{message.author.display_name} 擲骰：\n{res.format()}\n(來自 {message.author.display_name})")
-            await send_private(message, message.author, output)
+            await send_private(message, message.author, f"{message.author.display_name} 擲骰：\n{res.format()}")
             await message.add_reaction('📬')
         else:
-            await message.channel.send("此伺服器尚未設定 GM，請使用 .drgm addgm 登記。")
+            await message.channel.send(f"{message.author.mention} 此伺服器尚未設定 GM，請使用 .drgm addgm 登記。")
     elif target_type == 'gm_only':
         gms = gm_manager.get_gm_users(message.guild.id)
         recipients_ids = set(gms)
@@ -466,12 +466,11 @@ async def handle_roll(message, roll_expr, target_type='channel'):
         if success_count > 0:
             await message.add_reaction('🔒')
         else:
-            await message.channel.send("❌ 無法私訊給任何 GM，請檢查隱私設定。")
+            await message.channel.send(f"{message.author.mention} ❌ 無法私訊給任何 GM，請檢查隱私設定。")
     return
 
 async def handle_dot_command(message, cmd):
     """處理點命令，回傳 True 表示已處理"""
-    # .help 說明
     if cmd.startswith('help'):
         help_text = """
 **📖 D!ce 機器人使用說明**
@@ -549,7 +548,7 @@ async def handle_dot_command(message, cmd):
                 bonus_dice = -2
             parts = args.split(maxsplit=1)
             if not parts:
-                await message.channel.send("請提供技能值")
+                await message.channel.send(f"{message.author.mention} 請提供技能值")
                 return True
             try:
                 skill_values_part = parts[0]
@@ -559,7 +558,7 @@ async def handle_dot_command(message, cmd):
                 while len(skill_names) < len(skill_values):
                     skill_names.append("")
             except:
-                await message.channel.send("技能值格式錯誤")
+                await message.channel.send(f"{message.author.mention} 技能值格式錯誤")
                 return True
             results = []
             for i in range(min(times, 30)):
@@ -569,24 +568,24 @@ async def handle_dot_command(message, cmd):
                     line += f" → {bonus_desc} → 最終擲骰 {final_roll} → **{level}**"
                     results.append(f"第{i+1}次：{line}")
             if results:
-                header = f"**多重 CoC 檢定（{min(times,30)}次）**"
+                header = f"{message.author.mention} **多重 CoC 檢定（{min(times,30)}次）**"
                 if bonus_dice > 0:
                     header += f" (+{bonus_dice}獎勵骰)"
                 elif bonus_dice < 0:
                     header += f" ({-bonus_dice}懲罰骰)"
                 await message.channel.send(header + "\n" + "\n".join(results))
             else:
-                await message.channel.send("無法執行檢定，請檢查參數。")
+                await message.channel.send(f"{message.author.mention} 無法執行檢定，請檢查參數。")
             return True
         else:
             results = multi_roll(times, rest)
             if results:
-                out_lines = [f"**{times}次擲骰：{rest}**"]
+                out_lines = [f"{message.author.mention} **{times}次擲骰：{rest}**"]
                 for i, r in enumerate(results, 1):
                     out_lines.append(f"{i}: {r.format()}")
                 await message.channel.send("\n".join(out_lines))
             else:
-                await message.channel.send(f"多重擲骰失敗：{rest}")
+                await message.channel.send(f"{message.author.mention} 多重擲骰失敗：{rest}")
             return True
 
     if cmd.startswith('int'):
@@ -598,17 +597,17 @@ async def handle_dot_command(message, cmd):
                 if low > high:
                     low, high = high, low
                 val = random.randint(low, high)
-                await message.channel.send(f".int {low} {high}：{val}")
+                await message.channel.send(f"{message.author.mention} .int {low} {high}：{val}")
             except:
-                await message.channel.send("格式：.int 最小 最大")
+                await message.channel.send(f"{message.author.mention} 格式：.int 最小 最大")
         else:
-            await message.channel.send("格式：.int 最小 最大")
+            await message.channel.send(f"{message.author.mention} 格式：.int 最小 最大")
         return True
 
     if cmd.startswith('calc'):
         expr = cmd[4:].strip()
         if not expr:
-            await message.channel.send("請提供表達式，例如：`.calc 5+3*2` 或 `.calc (1D100+5)/2`")
+            await message.channel.send(f"{message.author.mention} 請提供表達式，例如：`.calc 5+3*2` 或 `.calc (1D100+5)/2`")
             return True
         def replace_dice(match):
             dice_expr = match.group(0)
@@ -629,9 +628,9 @@ async def handle_dot_command(message, cmd):
                 if not isinstance(node, allowed_nodes):
                     raise ValueError("不允許的運算")
             result = eval(compile(tree, '<string>', 'eval'))
-            await message.channel.send(f"**計算結果**\n{expr}\n= {result}")
+            await message.channel.send(f"{message.author.mention} **計算結果**\n{expr}\n= {result}")
         except Exception as e:
-            await message.channel.send(f"表達式錯誤：{e}")
+            await message.channel.send(f"{message.author.mention} 表達式錯誤：{e}")
         return True
 
     if cmd.startswith(('coc', 'cc')):
@@ -664,7 +663,7 @@ async def handle_dot_command(message, cmd):
                 else:
                     rest = cmd[2:].strip()
         if not rest:
-            await message.channel.send("請提供技能值，例如：`.cc 80 鬥毆` 或 `.cc1 80`")
+            await message.channel.send(f"{message.author.mention} 請提供技能值，例如：`.cc 80 鬥毆` 或 `.cc1 80`")
             return True
         parts = rest.split(maxsplit=1)
         skill_values_part = parts[0]
@@ -679,7 +678,7 @@ async def handle_dot_command(message, cmd):
             line = f"{sn} ({sv}%)" if sn else f"技能值 {sv}"
             line += f"\n{bonus_desc} → 最終擲骰 {final_roll} → **{level}**"
             output_lines.append(line)
-        header = f"**COC 七版檢定**"
+        header = f"{message.author.mention} **COC 七版檢定**"
         if bonus_dice > 0:
             header += f" (+{bonus_dice}獎勵骰)"
         elif bonus_dice < 0:
@@ -702,7 +701,7 @@ async def handle_dot_command(message, cmd):
             parts = sub.split(maxsplit=1)
             alias = parts[1] if len(parts) > 1 else None
             gm_manager.add_gm(message.guild.id, message.author.id, alias)
-            await message.channel.send(f"已將 {message.author.display_name} 登記為 GM" + (f" (化名：{alias})" if alias else ""))
+            await message.channel.send(f"{message.author.mention} 已將 {message.author.display_name} 登記為 GM" + (f" (化名：{alias})" if alias else ""))
         elif sub == 'show':
             gms = gm_manager.get_gms(message.guild.id)
             if gms:
@@ -713,26 +712,26 @@ async def handle_dot_command(message, cmd):
                     out += f"{idx}: {name} (化名：{gm['alias']})\n"
                 await message.channel.send(out)
             else:
-                await message.channel.send("目前沒有登記 GM。")
+                await message.channel.send(f"{message.author.mention} 目前沒有登記 GM。")
         elif sub.startswith('del'):
             parts = sub.split()
             if len(parts) == 2:
                 if parts[1].lower() == 'all':
                     gm_manager.clear_gms(message.guild.id)
-                    await message.channel.send("已清除所有 GM。")
+                    await message.channel.send(f"{message.author.mention} 已清除所有 GM。")
                 else:
                     try:
                         idx = int(parts[1])
                         if gm_manager.remove_gm(message.guild.id, idx):
-                            await message.channel.send(f"已刪除編號 {idx} 的 GM。")
+                            await message.channel.send(f"{message.author.mention} 已刪除編號 {idx} 的 GM。")
                         else:
-                            await message.channel.send("編號無效。")
+                            await message.channel.send(f"{message.author.mention} 編號無效。")
                     except:
-                        await message.channel.send("請輸入數字編號或 all。")
+                        await message.channel.send(f"{message.author.mention} 請輸入數字編號或 all。")
             else:
-                await message.channel.send("格式：.drgm del 編號 或 .drgm del all")
+                await message.channel.send(f"{message.author.mention} 格式：.drgm del 編號 或 .drgm del all")
         else:
-            await message.channel.send("子命令：addgm [化名], show, del 編號/all")
+            await message.channel.send(f"{message.author.mention} 子命令：addgm [化名], show, del 編號/all")
         return True
 
     if cmd.startswith('cmd'):
@@ -743,20 +742,20 @@ async def handle_dot_command(message, cmd):
                 keyword = parts[1]
                 command = parts[2]
                 cmd_manager.add_cmd(message.guild.id, keyword, command)
-                await message.channel.send(f"已新增關鍵字 `{keyword}` -> `{command}`")
+                await message.channel.send(f"{message.author.mention} 已新增關鍵字 `{keyword}` -> `{command}`")
             else:
-                await message.channel.send("格式：.cmd add 關鍵字 指令")
+                await message.channel.send(f"{message.author.mention} 格式：.cmd add 關鍵字 指令")
         elif sub.startswith('edit'):
             parts = sub.split(maxsplit=2)
             if len(parts) >= 3:
                 keyword = parts[1]
                 command = parts[2]
                 if cmd_manager.edit_cmd(message.guild.id, keyword, command):
-                    await message.channel.send(f"已修改關鍵字 `{keyword}` -> `{command}`")
+                    await message.channel.send(f"{message.author.mention} 已修改關鍵字 `{keyword}` -> `{command}`")
                 else:
-                    await message.channel.send(f"關鍵字 `{keyword}` 不存在。")
+                    await message.channel.send(f"{message.author.mention} 關鍵字 `{keyword}` 不存在。")
             else:
-                await message.channel.send("格式：.cmd edit 關鍵字 新指令")
+                await message.channel.send(f"{message.author.mention} 格式：.cmd edit 關鍵字 新指令")
         elif sub == 'show':
             cmds = cmd_manager.list_cmds(message.guild.id)
             if cmds:
@@ -765,13 +764,13 @@ async def handle_dot_command(message, cmd):
                     out += f"{idx}: `{kw}` -> `{cmd_str}`\n"
                 await message.channel.send(out)
             else:
-                await message.channel.send("目前沒有自訂指令。")
+                await message.channel.send(f"{message.author.mention} 目前沒有自訂指令。")
         elif sub.startswith('del'):
             parts = sub.split()
             if len(parts) == 2:
                 if parts[1].lower() == 'all':
                     cmd_manager.clear_cmds(message.guild.id)
-                    await message.channel.send("已清除所有自訂指令。")
+                    await message.channel.send(f"{message.author.mention} 已清除所有自訂指令。")
                 else:
                     try:
                         idx = int(parts[1])
@@ -779,13 +778,13 @@ async def handle_dot_command(message, cmd):
                         if 0 <= idx < len(cmds):
                             kw = cmds[idx][0]
                             cmd_manager.del_cmd(message.guild.id, kw)
-                            await message.channel.send(f"已刪除編號 {idx} 的關鍵字 `{kw}`。")
+                            await message.channel.send(f"{message.author.mention} 已刪除編號 {idx} 的關鍵字 `{kw}`。")
                         else:
-                            await message.channel.send("編號無效。")
+                            await message.channel.send(f"{message.author.mention} 編號無效。")
                     except:
-                        await message.channel.send("請輸入數字編號或 all。")
+                        await message.channel.send(f"{message.author.mention} 請輸入數字編號或 all。")
             else:
-                await message.channel.send("格式：.cmd del 編號 或 .cmd del all")
+                await message.channel.send(f"{message.author.mention} 格式：.cmd del 編號 或 .cmd del all")
         else:
             if sub:
                 cmd_str = cmd_manager.get_cmd(message.guild.id, sub)
@@ -800,16 +799,16 @@ async def handle_dot_command(message, cmd):
                 if cmd_str:
                     await on_message(message, custom_content=cmd_str)
                 else:
-                    await message.channel.send("找不到該關鍵字或編號。")
+                    await message.channel.send(f"{message.author.mention} 找不到該關鍵字或編號。")
             else:
-                await message.channel.send("請提供子命令：add, edit, show, del, 或關鍵字")
+                await message.channel.send(f"{message.author.mention} 請提供子命令：add, edit, show, del, 或關鍵字")
         return True
 
     if cmd.startswith(('ccrt', 'ccsu', 'cc7build', 'cc6build', 'cc7bg', 'chase')):
-        await message.channel.send(f"指令 `{cmd.split()[0]}` 正在開發中，請期待後續版本。")
+        await message.channel.send(f"{message.author.mention} 指令 `{cmd.split()[0]}` 正在開發中，請期待後續版本。")
         return True
 
-    await message.channel.send("未知的點命令。輸入 `.help` 查看所有功能。")
+    await message.channel.send(f"{message.author.mention} 未知的點命令。輸入 `.help` 查看所有功能。")
     return True
 
 @bot.event
@@ -833,7 +832,7 @@ async def on_message(message, custom_content=None):
         return
 
     lower_content = content.lower()
-    # 處理無點的 help 指令
+    # 無點 help
     if lower_content == 'help':
         help_text = """
 **📖 D!ce 機器人使用說明**
@@ -912,12 +911,12 @@ async def on_message(message, custom_content=None):
                     bonus_dice = -2
                 parts = args.split(maxsplit=1)
                 if not parts:
-                    await message.channel.send("請提供技能值")
+                    await message.channel.send(f"{message.author.mention} 請提供技能值")
                     return
                 try:
                     skill_val = int(parts[0])
                 except:
-                    await message.channel.send("技能值必須為數字")
+                    await message.channel.send(f"{message.author.mention} 技能值必須為數字")
                     return
                 skill_name = parts[1] if len(parts) > 1 else ""
                 final_roll, level, bonus_desc, all_rolls = coc_check(skill_val, bonus_dice)
@@ -950,9 +949,9 @@ async def on_message(message, custom_content=None):
                 if success_count > 0:
                     await message.add_reaction('🔒')
                 else:
-                    await message.channel.send("❌ 無法私訊給 GM，請檢查隱私設定。")
+                    await message.channel.send(f"{message.author.mention} ❌ 無法私訊給 GM，請檢查隱私設定。")
             else:
-                await message.channel.send("目前暗骰僅支援 CoC 指令 (cc)，其他指令請使用點命令前綴。")
+                await message.channel.send(f"{message.author.mention} 目前暗骰僅支援 CoC 指令 (cc)，其他指令請使用點命令前綴。")
         return
 
     # ddr
@@ -976,12 +975,12 @@ async def on_message(message, custom_content=None):
                     bonus_dice = -2
                 parts = args.split(maxsplit=1)
                 if not parts:
-                    await message.channel.send("請提供技能值")
+                    await message.channel.send(f"{message.author.mention} 請提供技能值")
                     return
                 try:
                     skill_val = int(parts[0])
                 except:
-                    await message.channel.send("技能值必須為數字")
+                    await message.channel.send(f"{message.author.mention} 技能值必須為數字")
                     return
                 skill_name = parts[1] if len(parts) > 1 else ""
                 final_roll, level, bonus_desc, all_rolls = coc_check(skill_val, bonus_dice)
@@ -1013,9 +1012,9 @@ async def on_message(message, custom_content=None):
                 if success_count > 0:
                     await message.add_reaction('📬')
                 else:
-                    await message.channel.send("❌ 無法私訊，請檢查隱私設定。")
+                    await message.channel.send(f"{message.author.mention} ❌ 無法私訊，請檢查隱私設定。")
             else:
-                await message.channel.send("目前暗骰僅支援 CoC 指令 (cc)，其他指令請使用點命令前綴。")
+                await message.channel.send(f"{message.author.mention} 目前暗骰僅支援 CoC 指令 (cc)，其他指令請使用點命令前綴。")
         return
 
     # dr
@@ -1039,12 +1038,12 @@ async def on_message(message, custom_content=None):
                     bonus_dice = -2
                 parts = args.split(maxsplit=1)
                 if not parts:
-                    await message.channel.send("請提供技能值")
+                    await message.channel.send(f"{message.author.mention} 請提供技能值")
                     return
                 try:
                     skill_val = int(parts[0])
                 except:
-                    await message.channel.send("技能值必須為數字")
+                    await message.channel.send(f"{message.author.mention} 技能值必須為數字")
                     return
                 skill_name = parts[1] if len(parts) > 1 else ""
                 final_roll, level, bonus_desc, all_rolls = coc_check(skill_val, bonus_dice)
@@ -1061,9 +1060,9 @@ async def on_message(message, custom_content=None):
                 if await send_private(message, message.author, f"{message.author.display_name} 暗骰：\n{output}"):
                     await message.add_reaction('📬')
                 else:
-                    await message.channel.send("❌ 無法私訊，請檢查隱私設定。")
+                    await message.channel.send(f"{message.author.mention} ❌ 無法私訊，請檢查隱私設定。")
             else:
-                await message.channel.send("目前暗骰僅支援 CoC 指令 (cc)，其他指令請使用點命令前綴。")
+                await message.channel.send(f"{message.author.mention} 目前暗骰僅支援 CoC 指令 (cc)，其他指令請使用點命令前綴。")
         return
 
     # 不帶點的 cc 家族指令 (公開)
@@ -1083,7 +1082,7 @@ async def on_message(message, custom_content=None):
     # 嘗試將整段訊息當作骰子表達式解析
     dice_res = parse_dice_expression(content)
     if dice_res is not None:
-        output = f"{message.author.display_name} 擲骰：\n{dice_res.format()}"
+        output = f"{message.author.mention} 擲骰：\n{dice_res.format()}"
         await message.channel.send(output)
         return
 
@@ -1096,10 +1095,10 @@ async def on_message(message, custom_content=None):
         dice_res = parse_dice_expression(dice_part)
         if dice_res:
             dice_res.text = text_part if text_part else None
-            output = f"{message.author.display_name} 擲骰：\n{dice_res.format()}"
+            output = f"{message.author.mention} 擲骰：\n{dice_res.format()}"
             await message.channel.send(output)
         else:
-            await message.channel.send(f"無法解析骰子指令：{dice_part}")
+            await message.channel.send(f"{message.author.mention} 無法解析骰子指令：{dice_part}")
         return
 
 if __name__ == "__main__":
