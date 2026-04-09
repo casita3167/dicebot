@@ -91,6 +91,11 @@ def dice_dy(expr):
     count = int(m.group(1))
     sides = int(m.group(2))
     rest = m.group(3)
+
+    # 新增：若後綴中包含另一個骰子組，則不在此處理
+    if re.search(r'\d+[Dd]\d+', rest, re.I):
+        return None
+
     full_expr = f"{count}D{sides}{rest}"
     base_expr, keep, drop, keep_low, drop_low, comp_op, comp_val = parse_modifiers(full_expr)
     rolls = [roll_dice(sides) for _ in range(count)]
@@ -112,6 +117,9 @@ def dice_dy(expr):
             calc_total = safe_eval_arithmetic(full_arithmetic_expr)
             if calc_total is not None:
                 total = calc_total
+            else:
+                # 算術運算失敗，不視為有效骰子表達式
+                return None
 
     filtered = None
     success = None
@@ -242,37 +250,38 @@ def parse_dice_expression(expr):
     return None
 
 def parse_multi_dice(expr):
-    """處理多骰組相加，如 3d6+1d99+2d4+5，回傳 (total, details_str) 或 None"""
-    if '+' not in expr:
-        return None
-    parts = expr.split('+')
-    results = []
+    """處理多骰組加減，如 3d6+1d99-2d4+5，回傳 (total, details_str) 或 None"""
+    # 使用正規表達式匹配帶正負號的骰子組或常數
+    tokens = re.finditer(r'([+-]?\s*\d+[Dd]\d+|[+-]?\s*\d+)', expr, re.I)
     total = 0
-    for part in parts:
-        part = part.strip()
+    details_parts = []
+    for token in tokens:
+        part = token.group().strip()
         if not part:
             continue
+        sign = 1
+        if part[0] in '+-':
+            sign = -1 if part[0] == '-' else 1
+            part = part[1:].strip()
         # 嘗試解析為骰子表達式
         res = parse_dice_expression(part)
         if res and res.rolls:
-            # 取得總值（優先使用 total，否則加總 rolls）
             val = res.total if res.total is not None else sum(res.rolls)
             rolls_str = ','.join(map(str, res.rolls))
-            results.append(f"{part}[{rolls_str}]")
-            total += val
+            details_parts.append(f"{'+' if sign == 1 else '-'}{part}[{rolls_str}]")
+            total += sign * val
         else:
             # 嘗試轉為數字常數
             try:
                 val = int(part)
-                results.append(part)
-                total += val
+                details_parts.append(f"{'+' if sign == 1 else '-'}{part}")
+                total += sign * val
             except ValueError:
-                # 無法解析的部分，返回 None 讓上層嘗試其他解析
                 return None
-    if len(results) < 2:
+    if len(details_parts) < 2:
         return None
-    details = '+'.join(results) + f" = {total}"
-    return total, details
+    details_str = ''.join(details_parts).lstrip('+')
+    return total, f"{details_str} = {total}"
 
 def multi_roll(times, dice_expr):
     times = min(times, 30)
