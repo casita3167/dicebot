@@ -280,7 +280,13 @@ def parse_dice_expression(expr):
     return None
 
 def parse_multi_dice(expr):
-    tokens = re.finditer(r'(?<![:<])([+-]?\s*\d+[Dd]\d+|[+-]?\s*\d+)(?![:>])', expr, re.I)
+    tokens = list(re.finditer(r'(?<![:<])([+-]?\s*\d+[Dd]\d+|[+-]?\s*\d+)(?![:>])', expr, re.I))
+    if not tokens:
+        return None
+    # 必須至少包含一個骰子（例如 3d6），避免純數字被相加
+    has_dice = any(re.search(r'[Dd]', t.group()) for t in tokens)
+    if not has_dice:
+        return None
     total = 0
     details_parts = []
     for token in tokens:
@@ -1137,15 +1143,18 @@ async def on_message(message, custom_content=None):
     clean_content = remove_discord_emoji(content)
 
     # 抽籤表功能：$名稱
+        # 抽籤表功能：$名稱
     if clean_content.startswith('$'):
         table_name = clean_content[1:].strip()
-        guild_id = message.guild.id
-        items = table_manager.get_table(guild_id, table_name)
+        items = table_manager.get_table(message.guild.id, table_name)
         if items:
             idx = random.randint(0, len(items)-1)
-            result_item = items[idx]
-            await message.channel.send(f"[{idx+1}] {result_item}")
-            return
+            embed = discord.Embed(title="🎲", description=f"**{items[idx]}**", color=0x00aaff)
+            embed.set_footer(text=f"#{idx+1} | {message.author.display_name}", icon_url=message.author.display_avatar.url)
+            await message.channel.send(embed=embed)
+        else:
+            await message.channel.send(embed=discord.Embed(title="❌", description=f"沒有 `{table_name}` 抽籤表", color=0xff0000))
+        return
 
     lower_content = clean_content.lower()
     if lower_content == 'help':
@@ -1189,7 +1198,10 @@ async def on_message(message, custom_content=None):
         cmd = content[1:].strip()
         await handle_dot_command(message, cmd)
         return
-
+    # 避免解析 URL 中的數字
+    if re.search(r'https?://', clean_content):
+        return
+    
     # 嘗試當作骰子表達式或計算式
     dice_res = parse_dice_expression(clean_content)
     if dice_res is not None:
