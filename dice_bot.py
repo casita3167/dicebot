@@ -251,8 +251,8 @@ def parse_dice_expression(expr):
 
 def parse_multi_dice(expr):
     """處理多骰組加減，如 3d6+1d99-2d4+5，回傳 (total, details_str) 或 None"""
-    # 使用正規表達式匹配帶正負號的骰子組或常數
-    tokens = re.finditer(r'([+-]?\s*\d+[Dd]\d+|[+-]?\s*\d+)', expr, re.I)
+    # 修改正則：數字前後不能是 : 或 < > ，避免匹配到表情符號中的數字
+    tokens = re.finditer(r'(?<![:<])([+-]?\s*\d+[Dd]\d+|[+-]?\s*\d+)(?![:>])', expr, re.I)
     total = 0
     details_parts = []
     for token in tokens:
@@ -735,7 +735,8 @@ def compute_expression(expr, author=None):
                 return str(multi[0])
             return dice_expr
 
-    dice_pattern = re.compile(r'(\d+[DBU]\d+[Ss]?(?:\s+\d+)?|D66[sn]?|\d+[Dd]\d+\+\d+[Dd]\d+)', re.I)
+    # 修改骰子模式正則：同樣加上邊界條件，避免匹配到表情符號
+    dice_pattern = re.compile(r'(?<![:<])(\d+[DBU]\d+[Ss]?(?:\s+\d+)?|D66[sn]?|\d+[Dd]\d+\+\d+[Dd]\d+)(?![:>])', re.I)
     replaced_expr = dice_pattern.sub(replace_dice, expr)
     try:
         allowed_nodes = (ast.Expression, ast.BinOp, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow,
