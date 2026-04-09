@@ -914,28 +914,93 @@ async def handle_dot_command(message, cmd):
         await development_check(message, args)
         return True
 
-    # drgm 指令
+       # drgm 指令
     if cmd.startswith('drgm'):
         parts = cmd[4:].strip().split()
         if not parts:
-            await message.channel.send(embed=discord.Embed(title="❌ 用法", description="`.drgm addgm @使用者 [別名]` / `.drgm list` / `.drgm remove 編號` / `.drgm clear`", color=0xff0000))
+            await message.channel.send(embed=discord.Embed(title="❌ 用法", description="`.drgm addgm [使用者] [化名]` / `.drgm list` / `.drgm remove 編號` / `.drgm clear`\n若不指定使用者，則新增自己為 GM。", color=0xff0000))
             return True
         sub = parts[0].lower()
         guild_id = message.guild.id
+
         if sub == 'addgm':
-            if len(parts) < 2:
-                await message.channel.send(embed=discord.Embed(title="❌ 缺少使用者", description="請標記要新增的 GM", color=0xff0000))
-                return True
             target = None
-            if parts[1].startswith('<@') and parts[1].endswith('>'):
-                uid = int(re.search(r'\d+', parts[1]).group())
-                target = message.guild.get_member(uid)
+            alias = None
+
+            # 解析參數：可能情況
+            # - 無參數：新增自己
+            # - 一個參數：可能是使用者 或 化名
+            # - 兩個參數：使用者 + 化名
+            if len(parts) == 1:
+                # 只有 addgm，新增自己
+                target = message.author
+            elif len(parts) == 2:
+                # 可能第二個是使用者或化名
+                # 先判斷是否為有效使用者
+                user_input = parts[1]
+                target = None
+                # 嘗試解析使用者
+                mention_match = re.search(r'<@!?(\d+)>', user_input)
+                if mention_match:
+                    uid = int(mention_match.group(1))
+                    target = message.guild.get_member(uid)
+                elif user_input.isdigit():
+                    uid = int(user_input)
+                    target = message.guild.get_member(uid)
+                else:
+                    clean_name = user_input.lstrip('@')
+                    target = discord.utils.get(message.guild.members, name=clean_name)
+                    if not target:
+                        target = discord.utils.get(message.guild.members, display_name=clean_name)
+                    if not target:
+                        lower_name = clean_name.lower()
+                        for member in message.guild.members:
+                            if member.name.lower() == lower_name or (member.nick and member.nick.lower() == lower_name):
+                                target = member
+                                break
+                if target:
+                    # 找到使用者，沒有化名
+                    alias = None
+                else:
+                    # 不是有效使用者，當作化名，目標設為自己
+                    target = message.author
+                    alias = user_input
+            else:  # len(parts) >= 3
+                # 第一個參數是使用者，第二個以後是化名
+                user_input = parts[1]
+                alias = ' '.join(parts[2:])
+                mention_match = re.search(r'<@!?(\d+)>', user_input)
+                if mention_match:
+                    uid = int(mention_match.group(1))
+                    target = message.guild.get_member(uid)
+                elif user_input.isdigit():
+                    uid = int(user_input)
+                    target = message.guild.get_member(uid)
+                else:
+                    clean_name = user_input.lstrip('@')
+                    target = discord.utils.get(message.guild.members, name=clean_name)
+                    if not target:
+                        target = discord.utils.get(message.guild.members, display_name=clean_name)
+                    if not target:
+                        lower_name = clean_name.lower()
+                        for member in message.guild.members:
+                            if member.name.lower() == lower_name or (member.nick and member.nick.lower() == lower_name):
+                                target = member
+                                break
+
             if not target:
-                await message.channel.send(embed=discord.Embed(title="❌ 無法識別使用者", color=0xff0000))
+                await message.channel.send(embed=discord.Embed(title="❌ 無法識別使用者", description=f"找不到使用者：`{user_input}`", color=0xff0000))
                 return True
-            alias = ' '.join(parts[2:]) if len(parts) > 2 else None
+
+            # 檢查是否已是 GM
+            existing_gms = gm_manager.get_gm_users(guild_id)
+            if target.id in existing_gms:
+                await message.channel.send(embed=discord.Embed(title="⚠️ 已是 GM", description=f"{target.display_name} 已經是 GM 了。", color=0xffaa00))
+                return True
+
             gm_manager.add_gm(guild_id, target.id, alias)
-            await message.channel.send(embed=discord.Embed(title="✅ 已新增 GM", description=f"{target.display_name} 已加入 GM 名單。", color=0x00aaff))
+            await message.channel.send(embed=discord.Embed(title="✅ 已新增 GM", description=f"{target.display_name} 已加入 GM 名單。" + (f" 化名：{alias}" if alias else ""), color=0x00aaff))
+
         elif sub == 'list':
             gms = gm_manager.get_gms(guild_id)
             if not gms:
@@ -944,6 +1009,7 @@ async def handle_dot_command(message, cmd):
                 desc = "\n".join([f"{i+1}. {gm['alias']} (<@{gm['user_id']}>)" for i, gm in enumerate(gms)])
                 embed = discord.Embed(title="📋 GM 列表", description=desc, color=0x00aaff)
                 await message.channel.send(embed=embed)
+
         elif sub == 'remove':
             if len(parts) < 2 or not parts[1].isdigit():
                 await message.channel.send(embed=discord.Embed(title="❌ 請提供編號", description="使用 `.drgm list` 查看編號", color=0xff0000))
@@ -953,13 +1019,14 @@ async def handle_dot_command(message, cmd):
                 await message.channel.send(embed=discord.Embed(title="✅ 已移除 GM", color=0x00aaff))
             else:
                 await message.channel.send(embed=discord.Embed(title="❌ 編號無效", color=0xff0000))
+
         elif sub == 'clear':
             gm_manager.clear_gms(guild_id)
             await message.channel.send(embed=discord.Embed(title="✅ 已清空 GM 列表", color=0x00aaff))
+
         else:
             await message.channel.send(embed=discord.Embed(title="❌ 未知子指令", description="可用：addgm, list, remove, clear", color=0xff0000))
         return True
-
     # cmd 指令
     if cmd.startswith('cmd'):
         parts = cmd[3:].strip().split(maxsplit=1)
