@@ -242,7 +242,7 @@ def parse_dice_expression(expr):
     return None
 
 def parse_multi_dice(expr):
-    """處理多骰組相加，如 3d6+1d99+2d4，回傳 (total, details_str) 或 None"""
+    """處理多骰組相加，如 3d6+1d99+2d4+5，回傳 (total, details_str) 或 None"""
     if '+' not in expr:
         return None
     parts = expr.split('+')
@@ -254,19 +254,11 @@ def parse_multi_dice(expr):
             continue
         # 嘗試解析為骰子表達式
         res = parse_dice_expression(part)
-        if res:
-            # 取得總值
-            if res.total is not None:
-                val = res.total
-            else:
-                val = sum(res.rolls)  # B系可能沒有total
-            # 格式化該部分
+        if res and res.rolls:
+            # 取得總值（優先使用 total，否則加總 rolls）
+            val = res.total if res.total is not None else sum(res.rolls)
             rolls_str = ','.join(map(str, res.rolls))
-            if len(res.rolls) == 1:
-                part_str = f"{part}[{rolls_str}]"
-            else:
-                part_str = f"{part}[{rolls_str}]"
-            results.append(part_str)
+            results.append(f"{part}[{rolls_str}]")
             total += val
         else:
             # 嘗試轉為數字常數
@@ -274,7 +266,8 @@ def parse_multi_dice(expr):
                 val = int(part)
                 results.append(part)
                 total += val
-            except:
+            except ValueError:
+                # 無法解析的部分，返回 None 讓上層嘗試其他解析
                 return None
     if len(results) < 2:
         return None
@@ -517,15 +510,18 @@ async def send_private(ctx_or_msg, user, content, alias_name=None):
         return False
 
 async def handle_roll(message, roll_expr, target_type='channel'):
-    # 先嘗試單骰子表達式
-    res = parse_dice_expression(roll_expr)
-    if res:
-        embed = discord.Embed(title="🎲 擲骰結果", description=res.format(), color=0x00aaff)
-        embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
+    # 先處理非純骰子的指令（CC, SC, P, DP, INT, CALC）
+    lower_expr = roll_expr.lower().strip()
+    
+    # 定義一個內部輔助函式，用來根據 target_type 發送結果
+    async def send_result(content, title=None, color=0x00aaff, footer=True):
+        embed = discord.Embed(title=title, description=content, color=color)
+        if footer:
+            embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         if target_type == 'channel':
             await message.channel.send(embed=embed)
         elif target_type == 'self':
-            await send_private(message, message.author, f"{message.author.display_name} 擲骰：\n{res.format()}")
+            await send_private(message, message.author, f"{message.author.display_name} 的暗骰結果：\n{content}")
             await message.add_reaction('📬')
         elif target_type == 'gm':
             gms = gm_manager.get_gm_users(message.guild.id)
@@ -534,12 +530,11 @@ async def handle_roll(message, roll_expr, target_type='channel'):
                 for gm_id in gms:
                     gm_user = message.guild.get_member(gm_id)
                     if gm_user:
-                        await send_private(message, gm_user, f"{message.author.display_name} 擲骰：\n{res.format()}\n(來自 {message.author.display_name})", alias_name=alias)
-                await send_private(message, message.author, f"{message.author.display_name} 擲骰：\n{res.format()}", alias_name=alias)
+                        await send_private(message, gm_user, f"{message.author.display_name} 的暗骰結果：\n{content}\n(來自 {message.author.display_name})", alias_name=alias)
+                await send_private(message, message.author, f"{message.author.display_name} 的暗骰結果：\n{content}", alias_name=alias)
                 await message.add_reaction('📬')
             else:
-                embed = discord.Embed(title="⚠️ 未設定 GM", description="此伺服器尚未設定 GM，請使用 `.drgm addgm` 登記。", color=0xffaa00)
-                await message.channel.send(embed=embed)
+                await message.channel.send(embed=discord.Embed(title="⚠️ 未設定 GM", description="此伺服器尚未設定 GM，請使用 `.drgm addgm` 登記。", color=0xffaa00))
         elif target_type == 'gm_only':
             gms = gm_manager.get_gm_users(message.guild.id)
             recipients_ids = set(gms)
@@ -551,19 +546,167 @@ async def handle_roll(message, roll_expr, target_type='channel'):
                 if uid == message.author.id:
                     user = message.author
                 else:
-                    try:
-                        user = await message.guild.fetch_member(uid)
-                    except:
-                        user = None
+                    user = message.guild.get_member(uid)
                 if user:
-                    if await send_private(message, user, f"{message.author.display_name} 擲骰：\n{res.format()}\n(僅 GM 可見)", alias_name=alias):
+                    if await send_private(message, user, f"{message.author.display_name} 的暗骰結果 (僅 GM 可見)：\n{content}", alias_name=alias):
                         success_count += 1
             if success_count > 0:
                 await message.add_reaction('🔒')
             else:
-                embed = discord.Embed(title="❌ 私訊失敗", description="無法私訊給任何 GM，請檢查隱私設定。", color=0xff0000)
-                await message.channel.send(embed=embed)
+                await message.channel.send(embed=discord.Embed(title="❌ 私訊失敗", description="無法私訊給任何 GM，請檢查隱私設定。", color=0xff0000))
+
+    # ----- CC / CoC 檢定 -----
+    cc_match = re.match(r'^(cc|cc[12]|ccn[12]?|coc)(?:\s+(.*))?$', lower_expr, re.I)
+    if cc_match:
+        cmd_part = cc_match.group(1).lower()
+        args = cc_match.group(2) or ""
+        bonus_dice = 0
+        if cmd_part in ('cc1', 'coc1'):
+            bonus_dice = 1
+        elif cmd_part == 'cc2':
+            bonus_dice = 2
+        elif cmd_part == 'ccn1':
+            bonus_dice = -1
+        elif cmd_part == 'ccn2':
+            bonus_dice = -2
+        elif cmd_part == 'ccn':
+            bonus_dice = -1
+        if not args:
+            await send_result("❌ 缺少技能值", title="COC 檢定錯誤", color=0xff0000)
+            return
+        parts = args.split(maxsplit=1)
+        skill_values_part = parts[0]
+        skill_names_part = parts[1] if len(parts) > 1 else ""
+        try:
+            skill_values = [int(x.strip()) for x in skill_values_part.split(',')]
+            skill_names = [x.strip() for x in skill_names_part.split(',')] if skill_names_part else []
+            while len(skill_names) < len(skill_values):
+                skill_names.append("")
+        except:
+            await send_result("技能值必須為數字，多個技能用逗號分隔", title="COC 檢定錯誤", color=0xff0000)
+            return
+        output_lines = []
+        for sv, sn in zip(skill_values, skill_names):
+            final_roll, level, bonus_desc, all_rolls = coc_check(sv, bonus_dice)
+            line = f"{sn} ({sv}%)" if sn else f"技能值 {sv}"
+            line += f"\n{bonus_desc} → 最終擲骰 {final_roll} → **{level}**"
+            output_lines.append(line)
+        title = "COC 七版檢定"
+        if bonus_dice > 0:
+            title += f" (+{bonus_dice}獎勵骰)"
+        elif bonus_dice < 0:
+            title += f" ({-bonus_dice}懲罰骰)"
+        await send_result("\n\n".join(output_lines), title=title)
         return
+
+    # ----- SC 理智檢定 -----
+    sc_match = re.match(r'^sc\s+(.+)$', lower_expr, re.I)
+    if sc_match:
+        args = sc_match.group(1)
+        parts = args.split()
+        if len(parts) < 3:
+            await send_result("格式錯誤，請使用：`.sc 目前SAN 成功損失 失敗損失`\n例如：`.sc 50 0 1d6`", title="SAN 檢定錯誤", color=0xff0000)
+            return
+        try:
+            current_san = int(parts[0])
+            success_loss = parts[1]
+            fail_loss = parts[2]
+        except:
+            await send_result("參數錯誤，請檢查數字格式", title="SAN 檢定錯誤", color=0xff0000)
+            return
+        roll = random.randint(1, 100)
+        if roll <= current_san:
+            loss = roll_dice_expr(success_loss)
+            result_text = f"理智檢定成功！損失 {loss} 點 SAN。"
+        else:
+            loss = roll_dice_expr(fail_loss)
+            result_text = f"理智檢定失敗！損失 {loss} 點 SAN。"
+        new_san = current_san - loss
+        content = f"目前 SAN：{current_san}\n擲骰結果：{roll}\n結果：{result_text}\n剩餘 SAN：{new_san}"
+        await send_result(content, title="🧠 SAN 檢定", color=0x00aa00 if roll <= current_san else 0xaa0000)
+        return
+
+    # ----- PBTA 檢定 -----
+    p_match = re.match(r'^(p|pbta)\s+(2d6[+-]?\d*)(?:\s+(.*))?$', lower_expr, re.I)
+    if p_match:
+        dice_expr = p_match.group(2)
+        move_name = p_match.group(3) if p_match.group(3) else ""
+        res = pbta_check(dice_expr)
+        if not res:
+            await send_result("請使用：`p 2d6[+/-修正] [移動名稱]`", title="PBTA 格式錯誤", color=0xff0000)
+            return
+        r1, r2, mod, total, result = res
+        content = f"移動：{move_name}\n骰子結果：{r1}+{r2} + {mod} = {total}\n判定結果：{result}" if move_name else f"骰子結果：{r1}+{r2} + {mod} = {total}\n判定結果：{result}"
+        await send_result(content, title="🎲 PBTA 擲骰")
+        return
+
+    # ----- DP 成長檢定 -----
+    dp_match = re.match(r'^dp\s+(.+)$', lower_expr, re.I)
+    if dp_match:
+        args = dp_match.group(1)
+        tokens = args.split()
+        if len(tokens) % 2 != 0:
+            await send_result("參數必須成對：技能值 名稱", title="成長檢定錯誤", color=0xff0000)
+            return
+        results = []
+        for i in range(0, len(tokens), 2):
+            try:
+                skill_val = int(tokens[i])
+                skill_name = tokens[i+1]
+            except:
+                continue
+            growth_roll = random.randint(1, 100)
+            if growth_roll > skill_val:
+                increase = random.randint(1, 10)
+                results.append(f"{skill_name} ({skill_val}%) → 成長檢定 {growth_roll} 失敗，獲得成長 +{increase}%，新技能值 {skill_val+increase}")
+            else:
+                results.append(f"{skill_name} ({skill_val}%) → 成長檢定 {growth_roll} 成功（或持平），未成長")
+        if results:
+            await send_result("\n".join(results), title="📈 成長檢定（失敗才成長）")
+        else:
+            await send_result("無法解析，請使用：`.dp 技能值 技能名稱`", title="成長檢定錯誤", color=0xff0000)
+        return
+
+    # ----- INT 隨機整數 -----
+    int_match = re.match(r'^int\s+(\d+)\s+(\d+)$', lower_expr)
+    if int_match:
+        low = int(int_match.group(1))
+        high = int(int_match.group(2))
+        if low > high:
+            low, high = high, low
+        val = random.randint(low, high)
+        await send_result(f".int {low} {high}：{val}", title="🎲 隨機整數")
+        return
+
+    # ----- CALC 計算 -----
+    calc_match = re.match(r'^calc\s+(.+)$', lower_expr)
+    if calc_match:
+        expr = calc_match.group(1)
+        embed = compute_expression(expr, message.author)
+        if embed:
+            # 重新打包成純文字，因為 send_result 需要字串
+            content = embed.description if embed.description else str(embed)
+            await send_result(content, title=embed.title, color=embed.color.value if embed.color else 0x00aaff)
+        else:
+            await send_result("表達式錯誤，請檢查算式", title="計算錯誤", color=0xff0000)
+        return
+
+    # ----- 原有的骰子表達式處理（不變）-----
+    # 先嘗試單骰子表達式
+    res = parse_dice_expression(roll_expr)
+    if res:
+        await send_result(res.format(), title="🎲 擲骰結果")
+        return
+
+    # 嘗試多骰組相加
+    multi = parse_multi_dice(roll_expr)
+    if multi:
+        total, details = multi
+        await send_result(f"{roll_expr}\n{details}", title="🎲 多重骰組相加")
+        return
+
+    # 都不是則無效
+    await send_result(f"無效的骰子指令：{roll_expr}", title="❌ 錯誤", color=0xff0000)
 
     # 嘗試多骰組相加 (如 3d6+1d99+2d4)
     multi = parse_multi_dice(roll_expr)
