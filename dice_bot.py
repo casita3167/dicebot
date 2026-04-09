@@ -7,6 +7,23 @@ import json
 import os
 from collections import defaultdict
 
+# ---------- 內嵌幫助內容 ----------
+HELP_DATA = {
+    "general": "**一般擲骰**\n`3d6` - 擲3個6面骰\n`d66` - 擲兩個六面骰組成兩位數\n`2b6` - 擲2個6面骰並顯示結果\n`(1d6+5)*2` - 支援表達式計算\n`5 3d6` - 多重擲骰 (最多30次)",
+    "coc": "**CoC 七版檢定**\n`.cc 50` - 普通檢定\n`.cc1 50` - 1個獎勵骰\n`.cc2 50` - 2個獎勵骰\n`.ccn 50` - 1個懲罰骰\n`.ccn1 50` - 1個懲罰骰\n`.ccn2 50` - 2個懲罰骰\n也可用 `.coc` 開頭",
+    "pbta": "**PBTA 擲骰**\n`p 2d6+2 移動名稱` - 2d6+修正，自動判定成功等級",
+    "san": "**SAN 檢定**\n`.sc 目前SAN 成功損失 失敗損失`\n例：`.sc 50 0 1d6`",
+    "int": "**隨機整數**\n`.int 1 100` - 產生1~100之間的整數",
+    "calc": "**計算**\n`.calc 表達式` - 安全計算，支援骰子\n例：`.calc (1d100+5)/2`",
+    "multi": "**多重擲骰**\n`5 3d6` - 擲5次3d6\n`10 cc 50` - 多重CoC檢定",
+    "secret": "**暗骰**\n`dr 3d6` - 私訊結果給自己\n`ddr 3d6` - 私訊結果給自己和GM\n`dddr 3d6` - 僅GM可見",
+    "growth": "**成長檢定**\n`.dp 50 騎乘 60 鬥毆` - 幕間成長檢定（失敗才成長）",
+    "gm": "**GM 管理**\n`.drgm addgm @使用者 [別名]` - 新增GM\n`.drgm list` - 列出GM\n`.drgm remove 編號` - 移除GM\n`.drgm clear` - 清空GM",
+    "cmd": "**自訂指令**\n`.cmd add 關鍵字 回應內容` - 新增\n`.cmd edit 關鍵字 新內容` - 編輯\n`.cmd del 關鍵字` - 刪除\n`.cmd list` - 列出\n`.cmd clear` - 清空\n使用 `.關鍵字` 呼叫",
+    "table": "**抽籤表**\n`.rts 名稱：項目1,項目2,...` - 建立表\n`$名稱` - 隨機抽取一項\n`.rts list` - 列出所有表\n`.rts del 名稱` - 刪除表\n`.rts clear` - 清空",
+    "help": "使用 `.help 分類名` 查看詳細說明，分類有：" + ", ".join([k for k in HELP_DATA.keys() if k != "help"])
+}
+
 # ---------- 安全求值函式 ----------
 def safe_eval(expr_str: str) -> float:
     """
@@ -67,9 +84,8 @@ def remove_discord_emoji(text: str) -> str:
     """移除 Discord 自訂表情符號（如 :frog8: 或 <:name:123>）"""
     return re.sub(r'<a?:\w+:\d+>|:\w+:', '', text)
 
-# ---------- 骰子核心函式（保持原有，但使用新的安全計算）----------
+# ---------- 骰子核心函式 ----------
 class DiceResult:
-    # 保持原樣，略...
     def __init__(self, raw_expr, rolls, total=None, text=None, success=None, details=None, filtered_rolls=None, arithmetic=None):
         self.raw_expr = raw_expr
         self.rolls = rolls
@@ -103,7 +119,6 @@ def roll_dice(sides):
     return random.randint(1, sides)
 
 def parse_modifiers(expr):
-    # 保持原樣
     mod_pattern = re.compile(r'(?:kh(\d*)|kl(\d*)|dh(\d*)|dl(\d*))$', re.I)
     mod_match = mod_pattern.search(expr)
     keep = None
@@ -161,7 +176,7 @@ def dice_dy(expr):
         if base_expr.startswith(dice_part):
             arithmetic_part = base_expr[len(dice_part):]
             full_arithmetic_expr = f"{sum_rolls}{arithmetic_part}"
-            calc_total = safe_eval(full_arithmetic_expr)  # 使用統一安全函式
+            calc_total = safe_eval(full_arithmetic_expr)
             if calc_total is not None:
                 total = calc_total
             else:
@@ -192,7 +207,6 @@ def dice_dy(expr):
     return DiceResult(expr, rolls, total, success=success, filtered_rolls=filtered, arithmetic=arithmetic_part)
 
 def dice_by(expr):
-    # 保持原樣（不涉及算術）
     m = re.match(r'^(\d+)B(\d+)([Ss]?)(.*)$', expr, re.I)
     if not m:
         return None
@@ -402,7 +416,7 @@ def roll_dice_expr(expr):
         except:
             return 0
 
-# ---------- 成長檢定（已存在）----------
+# ---------- 成長檢定 ----------
 async def development_check(message, args):
     if not args:
         embed = discord.Embed(title="❌ 格式錯誤", description="請提供技能值與名稱，例如：`.dp 50 騎乘 60 鬥毆`", color=0xff0000)
@@ -435,7 +449,7 @@ async def development_check(message, args):
         embed = discord.Embed(title="❌ 無法解析", description="請使用：`.dp 技能值 技能名稱`", color=0xff0000)
         await message.channel.send(embed=embed)
 
-# ---------- GM 管理（保持原樣）----------
+# ---------- GM 管理 ----------
 class GMManager:
     def __init__(self, filename='gm_data.json'):
         self.filename = filename
@@ -504,28 +518,24 @@ class CmdManager:
     def list_cmds(self, guild_id):
         return list(self.data[guild_id].items())
 
-# ---------- 抽籤表（伺服器隔離 + 持久化）----------
+# ---------- 抽籤表 ----------
 class TableManager:
     def __init__(self, filename='tables.json'):
         self.filename = filename
-        self.data = defaultdict(dict)  # {guild_id: {table_name: [items]}}
+        self.data = defaultdict(dict)
         self.load()
     def load(self):
-        self.data = defaultdict(dict) # 確保一開始就是空的 defaultdict
-        
+        self.data = defaultdict(dict)
         if not os.path.exists(self.filename) or os.path.getsize(self.filename) == 0:
             return
-
         try:
             with open(self.filename, 'r', encoding='utf-8') as f:
                 raw = json.load(f)
                 for k, v in raw.items():
-                    # 這裡把讀進來的 dict 塞進 defaultdict，會自動處理型別
                     self.data[int(k)] = v
         except (json.JSONDecodeError, ValueError) as e:
             print(f"警告：載入 {self.filename} 失敗 ({e})，使用空資料啟動。")
     def save(self):
-        # 將 defaultdict 轉為普通 dict 儲存
         to_save = {str(k): v for k, v in self.data.items()}
         with open(self.filename, 'w', encoding='utf-8') as f:
             json.dump(to_save, f, ensure_ascii=False, indent=2)
@@ -671,7 +681,6 @@ async def handle_calc_roll(message, expr, target_type):
     if not expr:
         await send_result(message, "請提供表達式，例如：`5+3*2` 或 `(1D100+5)/2`", title="計算錯誤", color=0xff0000, target_type=target_type)
         return
-    # 移除表情符號
     expr = remove_discord_emoji(expr)
     result, replaced = safe_compute_with_dice(expr)
     if result is not None:
@@ -723,7 +732,6 @@ async def send_result(message, content, title=None, color=0x00aaff, target_type=
 
 async def handle_roll(message, roll_expr, target_type='channel'):
     """路由函式：根據表達式類型分發到對應處理器"""
-    # 移除表情符號
     roll_expr = remove_discord_emoji(roll_expr)
     lower_expr = roll_expr.lower().strip()
 
@@ -786,14 +794,14 @@ async def handle_roll(message, roll_expr, target_type='channel'):
 
     await send_result(message, f"無效的骰子指令：{roll_expr}", title="❌ 錯誤", color=0xff0000, target_type=target_type)
 
-# ---------- 點命令處理（包含 help、抽籤表、自訂指令等）----------
+# ---------- 點命令處理 ----------
 async def handle_dot_command(message, cmd):
     """處理 . 開頭的命令"""
     if cmd.startswith('help'):
         await show_help(message, cmd[4:].strip())
         return True
 
-    # 處理 .rts 相關指令（使用 table_manager）
+    # 處理 .rts 相關指令
     if cmd.startswith('rts'):
         content = cmd[3:].strip()
         guild_id = message.guild.id
@@ -835,12 +843,11 @@ async def handle_dot_command(message, cmd):
         await message.channel.send(f"✅ 搞定！已紀錄【{table_name}】，共 {len(items)} 個項目。")
         return True
 
-    # 多重擲骰 .次數 指令（略，保持原樣，但注意移除表情符號）
+    # 多重擲骰 .次數 指令
     multi_match = re.match(r'^(\d+)\s+(.+)$', cmd)
     if multi_match:
         times = int(multi_match.group(1))
         rest = multi_match.group(2).strip()
-        # 可選：支援多重 CoC 檢定
         cc_match = re.match(r'^(cc(?:[12]?|n[12]?)?)(?:\s+(.*))?$', rest, re.I)
         if cc_match:
             cmd_part = cc_match.group(1).lower()
@@ -901,7 +908,7 @@ async def handle_dot_command(message, cmd):
                 await message.channel.send(embed=discord.Embed(title="❌ 多重擲骰失敗", description=rest, color=0xff0000))
             return True
 
-    # 其他指令：int, calc, cc, p, sc, dp, drgm, cmd 等（保持原樣但調用新的路由）
+    # 其他指令：int, calc, cc, p, sc, dp
     if cmd.startswith('int'):
         parts = cmd.split()
         if len(parts) == 3:
@@ -916,7 +923,6 @@ async def handle_dot_command(message, cmd):
         return True
 
     if cmd.startswith(('coc', 'cc')):
-        # 解析獎勵骰等，然後呼叫 handle_coc_roll
         bonus_dice = 0
         rest = ""
         m_ccn = re.match(r'^ccn([12]?)(.*)$', cmd, re.I)
@@ -952,36 +958,132 @@ async def handle_dot_command(message, cmd):
         await development_check(message, args)
         return True
 
-    # drgm, cmd 等保持原樣（略，因篇幅不重複貼，但需改用新的 table_manager 相關？不影響）
-    # 以下保留原有的 drgm 和 cmd 處理（未修改），但為了完整，複製原有程式碼略作調整
+    # drgm 指令
     if cmd.startswith('drgm'):
-        # 原有程式碼（略，請複製原版）
-        pass  # 實際使用時請貼上原有 drgm 處理
+        parts = cmd[4:].strip().split()
+        if not parts:
+            await message.channel.send(embed=discord.Embed(title="❌ 用法", description="`.drgm addgm @使用者 [別名]` / `.drgm list` / `.drgm remove 編號` / `.drgm clear`", color=0xff0000))
+            return True
+        sub = parts[0].lower()
+        guild_id = message.guild.id
+        if sub == 'addgm':
+            if len(parts) < 2:
+                await message.channel.send(embed=discord.Embed(title="❌ 缺少使用者", description="請標記要新增的 GM", color=0xff0000))
+                return True
+            target = None
+            if parts[1].startswith('<@') and parts[1].endswith('>'):
+                uid = int(re.search(r'\d+', parts[1]).group())
+                target = message.guild.get_member(uid)
+            if not target:
+                await message.channel.send(embed=discord.Embed(title="❌ 無法識別使用者", color=0xff0000))
+                return True
+            alias = ' '.join(parts[2:]) if len(parts) > 2 else None
+            gm_manager.add_gm(guild_id, target.id, alias)
+            await message.channel.send(embed=discord.Embed(title="✅ 已新增 GM", description=f"{target.display_name} 已加入 GM 名單。", color=0x00aaff))
+        elif sub == 'list':
+            gms = gm_manager.get_gms(guild_id)
+            if not gms:
+                await message.channel.send(embed=discord.Embed(title="📋 GM 列表", description="目前沒有 GM。", color=0x00aaff))
+            else:
+                desc = "\n".join([f"{i+1}. {gm['alias']} (<@{gm['user_id']}>)" for i, gm in enumerate(gms)])
+                embed = discord.Embed(title="📋 GM 列表", description=desc, color=0x00aaff)
+                await message.channel.send(embed=embed)
+        elif sub == 'remove':
+            if len(parts) < 2 or not parts[1].isdigit():
+                await message.channel.send(embed=discord.Embed(title="❌ 請提供編號", description="使用 `.drgm list` 查看編號", color=0xff0000))
+                return True
+            idx = int(parts[1]) - 1
+            if gm_manager.remove_gm(guild_id, idx):
+                await message.channel.send(embed=discord.Embed(title="✅ 已移除 GM", color=0x00aaff))
+            else:
+                await message.channel.send(embed=discord.Embed(title="❌ 編號無效", color=0xff0000))
+        elif sub == 'clear':
+            gm_manager.clear_gms(guild_id)
+            await message.channel.send(embed=discord.Embed(title="✅ 已清空 GM 列表", color=0x00aaff))
+        else:
+            await message.channel.send(embed=discord.Embed(title="❌ 未知子指令", description="可用：addgm, list, remove, clear", color=0xff0000))
+        return True
 
+    # cmd 指令
     if cmd.startswith('cmd'):
-        # 原有程式碼（略）
-        pass
+        parts = cmd[3:].strip().split(maxsplit=1)
+        if not parts:
+            await message.channel.send(embed=discord.Embed(title="❌ 用法", description="`.cmd add 關鍵字 回應` / `.cmd edit 關鍵字 新回應` / `.cmd del 關鍵字` / `.cmd list` / `.cmd clear`", color=0xff0000))
+            return True
+        sub = parts[0].lower()
+        guild_id = message.guild.id
+        if sub == 'add':
+            if len(parts) < 2:
+                await message.channel.send(embed=discord.Embed(title="❌ 請提供 關鍵字 和 回應內容", color=0xff0000))
+                return True
+            rest = parts[1].split(maxsplit=1)
+            if len(rest) < 2:
+                await message.channel.send(embed=discord.Embed(title="❌ 請提供 關鍵字 和 回應內容", color=0xff0000))
+                return True
+            keyword = rest[0].lower()
+            response = rest[1]
+            cmd_manager.add_cmd(guild_id, keyword, response)
+            await message.channel.send(embed=discord.Embed(title="✅ 已新增自訂指令", description=f"`.{keyword}`", color=0x00aaff))
+        elif sub == 'edit':
+            if len(parts) < 2:
+                await message.channel.send(embed=discord.Embed(title="❌ 請提供 關鍵字 和 新回應", color=0xff0000))
+                return True
+            rest = parts[1].split(maxsplit=1)
+            if len(rest) < 2:
+                await message.channel.send(embed=discord.Embed(title="❌ 請提供 關鍵字 和 新回應", color=0xff0000))
+                return True
+            keyword = rest[0].lower()
+            new_response = rest[1]
+            if cmd_manager.edit_cmd(guild_id, keyword, new_response):
+                await message.channel.send(embed=discord.Embed(title="✅ 已編輯自訂指令", description=f"`.{keyword}`", color=0x00aaff))
+            else:
+                await message.channel.send(embed=discord.Embed(title="❌ 找不到該指令", color=0xff0000))
+        elif sub == 'del':
+            if len(parts) < 2:
+                await message.channel.send(embed=discord.Embed(title="❌ 請提供關鍵字", color=0xff0000))
+                return True
+            keyword = parts[1].strip().lower()
+            if cmd_manager.del_cmd(guild_id, keyword):
+                await message.channel.send(embed=discord.Embed(title="✅ 已刪除自訂指令", description=f"`.{keyword}`", color=0x00aaff))
+            else:
+                await message.channel.send(embed=discord.Embed(title="❌ 找不到該指令", color=0xff0000))
+        elif sub == 'list':
+            cmds = cmd_manager.list_cmds(guild_id)
+            if not cmds:
+                await message.channel.send(embed=discord.Embed(title="📋 自訂指令列表", description="目前沒有任何自訂指令。", color=0x00aaff))
+            else:
+                desc = "\n".join([f"`.{k}` → {v}" for k, v in cmds])
+                embed = discord.Embed(title="📋 自訂指令列表", description=desc, color=0x00aaff)
+                await message.channel.send(embed=embed)
+        elif sub == 'clear':
+            cmd_manager.clear_cmds(guild_id)
+            await message.channel.send(embed=discord.Embed(title="✅ 已清空所有自訂指令", color=0x00aaff))
+        else:
+            await message.channel.send(embed=discord.Embed(title="❌ 未知子指令", description="可用：add, edit, del, list, clear", color=0xff0000))
+        return True
+
+    # 自訂指令查詢
+    if cmd in cmd_manager.data.get(message.guild.id, {}):
+        response = cmd_manager.get_cmd(message.guild.id, cmd)
+        if response:
+            await message.channel.send(response)
+            return True
 
     # 未知指令
     await message.channel.send(embed=discord.Embed(title="❓ 未知的點命令", description="輸入 `.help` 查看所有功能。", color=0xff0000))
     return True
 
 async def show_help(message, category):
-    """顯示幫助，從 help.json 讀取"""
-    if not os.path.exists('help.json'):
-        await message.channel.send("❌ 找不到幫助文件 help.json")
-        return
-    with open('help.json', 'r', encoding='utf-8') as f:
-        help_data = json.load(f)
+    """顯示幫助，從內置 HELP_DATA 讀取"""
     if not category:
         # 顯示所有分類列表
         embed = discord.Embed(title="📖 D!ce 機器人幫助", color=0x00aaff)
-        categories = list(help_data.keys())
+        categories = [k for k in HELP_DATA.keys() if k != "help"]
         embed.description = "可用分類：`" + "`, `".join(categories) + "`\n使用 `.help 分類名` 查看詳細說明。"
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
     else:
-        text = help_data.get(category)
+        text = HELP_DATA.get(category)
         if text:
             embed = discord.Embed(title=f"📖 {category} 幫助", description=text, color=0x00aaff)
             embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
@@ -1009,7 +1111,6 @@ async def on_message(message, custom_content=None):
     if not content:
         return
 
-    # 移除表情符號（避免觸發）
     clean_content = remove_discord_emoji(content)
 
     # 抽籤表功能：$名稱
@@ -1024,14 +1125,13 @@ async def on_message(message, custom_content=None):
             return
 
     lower_content = clean_content.lower()
-    # 無點 help
     if lower_content == 'help':
         await show_help(message, "")
         return
 
-    # dddr / ddr / dr 暗骰
+    # 暗骰
     if lower_content.startswith('dddr '):
-        expr = content[5:].strip()  # 原始內容（保留未移除表情？但移除較安全）
+        expr = content[5:].strip()
         expr = remove_discord_emoji(expr)
         await handle_roll(message, expr, 'gm_only')
         return
