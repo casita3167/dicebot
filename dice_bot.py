@@ -242,9 +242,7 @@ def parse_dice_expression(expr):
     return None
 
 def parse_multi_dice(expr):
-    """處理多骰組相加，如 3d6+1d99，回傳 (total, details_str) 或 None
-       details_str 格式： [3+2+6]+[89] = 100
-    """
+    """處理多骰組相加，如 3d6+1d99+2d4，回傳 (total, details_str) 或 None"""
     if '+' not in expr:
         return None
     parts = expr.split('+')
@@ -254,19 +252,24 @@ def parse_multi_dice(expr):
         part = part.strip()
         if not part:
             continue
+        # 嘗試解析為骰子表達式
         res = parse_dice_expression(part)
         if res:
+            # 取得總值
             if res.total is not None:
                 val = res.total
             else:
-                val = sum(res.rolls)
-            # 格式化骰子值：用加號連接，放在方括號內
-            rolls_str = '+'.join(map(str, res.rolls))
-            part_str = f"[{rolls_str}]"
+                val = sum(res.rolls)  # B系可能沒有total
+            # 格式化該部分
+            rolls_str = ','.join(map(str, res.rolls))
+            if len(res.rolls) == 1:
+                part_str = f"{part}[{rolls_str}]"
+            else:
+                part_str = f"{part}[{rolls_str}]"
             results.append(part_str)
             total += val
         else:
-            # 常數
+            # 嘗試轉為數字常數
             try:
                 val = int(part)
                 results.append(part)
@@ -562,18 +565,16 @@ async def handle_roll(message, roll_expr, target_type='channel'):
                 await message.channel.send(embed=embed)
         return
 
-    # 嘗試多骰組相加 (如 3d6+1d99)
+    # 嘗試多骰組相加 (如 3d6+1d99+2d4)
     multi = parse_multi_dice(roll_expr)
     if multi:
         total, details = multi
-        # 輸出格式：第一行原表達式，第二行詳細算式
-        desc = f"{roll_expr}\n{details}"
-        embed = discord.Embed(title="🎲 多重骰組相加", description=desc, color=0x00aaff)
+        embed = discord.Embed(title="🎲 多重骰組相加", description=f"{roll_expr}\n{details}", color=0x00aaff)
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         if target_type == 'channel':
             await message.channel.send(embed=embed)
         elif target_type == 'self':
-            await send_private(message, message.author, f"{message.author.display_name} 擲骰：\n{desc}")
+            await send_private(message, message.author, f"{message.author.display_name} 擲骰：\n{roll_expr}\n{details}")
             await message.add_reaction('📬')
         elif target_type == 'gm':
             gms = gm_manager.get_gm_users(message.guild.id)
@@ -582,8 +583,8 @@ async def handle_roll(message, roll_expr, target_type='channel'):
                 for gm_id in gms:
                     gm_user = message.guild.get_member(gm_id)
                     if gm_user:
-                        await send_private(message, gm_user, f"{message.author.display_name} 擲骰：\n{desc}", alias_name=alias)
-                await send_private(message, message.author, f"{message.author.display_name} 擲骰：\n{desc}", alias_name=alias)
+                        await send_private(message, gm_user, f"{message.author.display_name} 擲骰：\n{roll_expr}\n{details}", alias_name=alias)
+                await send_private(message, message.author, f"{message.author.display_name} 擲骰：\n{roll_expr}\n{details}", alias_name=alias)
                 await message.add_reaction('📬')
             else:
                 embed = discord.Embed(title="⚠️ 未設定 GM", description="此伺服器尚未設定 GM，請使用 `.drgm addgm` 登記。", color=0xffaa00)
@@ -604,7 +605,7 @@ async def handle_roll(message, roll_expr, target_type='channel'):
                     except:
                         user = None
                 if user:
-                    if await send_private(message, user, f"{message.author.display_name} 暗骰：\n{desc}", alias_name=alias):
+                    if await send_private(message, user, f"{message.author.display_name} 暗骰：\n{roll_expr}\n{details}", alias_name=alias):
                         success_count += 1
             if success_count > 0:
                 await message.add_reaction('🔒')
@@ -657,7 +658,7 @@ async def handle_dot_command(message, cmd):
         embed = discord.Embed(title="📖 D!ce 機器人使用說明", color=0x00aaff)
         embed.add_field(name="🎲 通用骰子指令", value="`xDy` - 擲 x 粒 y 面骰，例如 `2D6`\n`xDy kh/kl/dh/dl` - 保留/放棄最高/最低骰，例如 `4D6kh1`\n`xDy >= t` - 篩選符合條件的骰子，例如 `3D6>=4`\n`xBy` - 不加總骰子，可加 `S` 排序，`>=t` 篩選\n`xUy z` - 獎勵骰系統\n`D66`, `D66s`, `D66n` - 六面骰組合", inline=False)
         embed.add_field(name="🔢 多重擲骰", value="`.次數 骰子指令` - 例如 `.5 3D6`（最多30次）", inline=False)
-        embed.add_field(name="➕ 多骰組相加", value="`3d6+1d99` - 分別計算各組骰子並加總，輸出如 `[3+2+6]+[89]=100`", inline=False)
+        embed.add_field(name="➕ 多骰組相加", value="`3d6+1d99+2d4` - 分別計算各組骰子並加總", inline=False)
         embed.add_field(name="🎯 CoC 七版檢定", value="`.cc 技能值 [技能名稱]` - 普通檢定\n`.cc1/cc2` 獎勵骰，`.ccn1/ccn2` 懲罰骰\n支援聯合檢定：`.cc 80,60 鬥毆,魅惑`\n多次檢定：`.10 cc 20`", inline=False)
         embed.add_field(name="🎲 PBTA 檢定", value="`.p 2d6[+/-修正] [移動名稱]` - 例如 `.p 2d6+2`", inline=False)
         embed.add_field(name="🧠 理智檢定", value="`.sc 目前SAN 成功損失 失敗損失` - 例如 `.sc 50 0 1d6`", inline=False)
@@ -667,7 +668,7 @@ async def handle_dot_command(message, cmd):
         embed.add_field(name="👑 GM 管理", value="`.drgm addgm [化名]` - 登記為 GM\n`.drgm show` - 顯示 GM 列表\n`.drgm del 編號/all` - 刪除 GM", inline=False)
         embed.add_field(name="🔧 自訂指令", value="`.cmd add 關鍵字 指令` - 例如 `.cmd add 戰鬥 cc 80 鬥毆`\n`.cmd 關鍵字` - 執行自訂指令", inline=False)
         embed.add_field(name="🎲 其他", value="`.int 最小 最大` - 隨機整數\n`.help` - 顯示此說明", inline=False)
-        embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`.rts del 名稱` - 刪除指定表格\n`.rts clear` - 清空所有表格\n`.rts list` - 列出所有表格名稱\n`$名稱` - 從表中隨機抽取一項", inline=False)
+        embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`.rts list` - 查看所有表格\n`.rts del 名稱` - 刪除指定表格\n`.rts clear` - 清空所有表格\n`$名稱` - 從表中隨機抽取一項", inline=False)
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
         return True
@@ -675,6 +676,19 @@ async def handle_dot_command(message, cmd):
     # 處理 .rts 相關指令
     if cmd.startswith('rts'):
         content = cmd[3:].strip()
+        # 列出所有表格
+        if content == 'list':
+            if not tables:
+                await message.channel.send("📭 目前沒有任何抽籤表。")
+            else:
+                embed = discord.Embed(title="📋 抽籤表列表", color=0x00aaff)
+                desc = ""
+                for name, items in tables.items():
+                    desc += f"**{name}**：{len(items)} 個項目\n"
+                embed.description = desc
+                embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
+                await message.channel.send(embed=embed)
+            return True
         # 刪除指定表格
         if content.startswith('del '):
             table_name = content[4:].strip()
@@ -689,20 +703,10 @@ async def handle_dot_command(message, cmd):
             tables.clear()
             await message.channel.send("✅ 已清空所有抽籤表")
             return True
-        # 列出所有表格
-        if content == 'list':
-            if not tables:
-                await message.channel.send("📋 目前沒有任何抽籤表。")
-            else:
-                names = list(tables.keys())
-                desc = "\n".join(f"• {name}（{len(tables[name])}項）" for name in names)
-                embed = discord.Embed(title="📋 抽籤表列表", description=desc, color=0x00aaff)
-                await message.channel.send(embed=embed)
-            return True
         # 建立表格（原有功能）
         match = re.split(r'[：:]', content, maxsplit=1)
         if len(match) < 2:
-            await message.channel.send("格式不對喔！請用：`.rts 名稱：項目1,項目2...` 或 `.rts del 名稱` 或 `.rts clear` 或 `.rts list`")
+            await message.channel.send("格式不對喔！請用：`.rts 名稱：項目1,項目2...` 或 `.rts list` 或 `.rts del 名稱` 或 `.rts clear`")
             return True
         table_name = match[0].strip()
         items = [i.strip() for i in match[1].split(',') if i.strip()]
@@ -1087,7 +1091,7 @@ async def on_message(message, custom_content=None):
         embed = discord.Embed(title="📖 D!ce 機器人使用說明", color=0x00aaff)
         embed.add_field(name="🎲 通用骰子指令", value="`xDy` - 擲 x 粒 y 面骰，例如 `2D6`\n`xDy kh/kl/dh/dl` - 保留/放棄最高/最低骰\n`xDy >= t` - 篩選符合條件的骰子\n`xBy` - 不加總骰子，可加 `S` 排序\n`xUy z` - 獎勵骰系統\n`D66`, `D66s`, `D66n`", inline=False)
         embed.add_field(name="🔢 多重擲骰", value="`.次數 骰子指令` - 例如 `.5 3D6`（最多30次）", inline=False)
-        embed.add_field(name="➕ 多骰組相加", value="`3d6+1d99` - 分別計算各組骰子並加總，輸出如 `[3+2+6]+[89]=100`", inline=False)
+        embed.add_field(name="➕ 多骰組相加", value="`3d6+1d99+2d4` - 分別計算各組骰子並加總", inline=False)
         embed.add_field(name="🎯 CoC 七版檢定", value="`.cc 技能值 [技能名稱]`\n`.cc1/cc2` 獎勵骰，`.ccn1/ccn2` 懲罰骰\n支援聯合檢定：`.cc 80,60 鬥毆,魅惑`\n多次檢定：`.10 cc 20`", inline=False)
         embed.add_field(name="🎲 PBTA 檢定", value="`.p 2d6[+/-修正] [移動名稱]` - 例如 `.p 2d6+2`", inline=False)
         embed.add_field(name="🧠 理智檢定", value="`.sc 目前SAN 成功損失 失敗損失`", inline=False)
@@ -1097,7 +1101,7 @@ async def on_message(message, custom_content=None):
         embed.add_field(name="👑 GM 管理", value="`.drgm addgm [化名]`\n`.drgm show`\n`.drgm del 編號/all`", inline=False)
         embed.add_field(name="🔧 自訂指令", value="`.cmd add 關鍵字 指令`\n`.cmd 關鍵字`", inline=False)
         embed.add_field(name="🎲 其他", value="`.int 最小 最大` - 隨機整數\n`.help` - 顯示此說明", inline=False)
-        embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`.rts del 名稱` - 刪除指定表格\n`.rts clear` - 清空所有表格\n`.rts list` - 列出所有表格名稱\n`$名稱` - 從表中隨機抽取一項", inline=False)
+        embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`.rts list` - 查看所有表格\n`.rts del 名稱` - 刪除指定表格\n`.rts clear` - 清空所有表格\n`$名稱` - 從表中隨機抽取一項", inline=False)
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
         return
@@ -1165,8 +1169,7 @@ async def on_message(message, custom_content=None):
     multi = parse_multi_dice(content)
     if multi:
         total, details = multi
-        desc = f"{content}\n{details}"
-        embed = discord.Embed(title="🎲 多重骰組相加", description=desc, color=0x00aaff)
+        embed = discord.Embed(title="🎲 多重骰組相加", description=f"{content}\n{details}", color=0x00aaff)
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
         return
