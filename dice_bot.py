@@ -448,21 +448,6 @@ cmd_manager = CmdManager()
 # ---------- 抽籤表功能 ----------
 tables = {}  # 記憶體儲存：{ "名稱": ["項目1", "項目2", ...] }
 
-@bot.command()
-async def rts(ctx, *, content: str):
-    """建立抽籤表，格式：.rts 名稱：項目1,項目2,項目3..."""
-    match = re.split(r'[：:]', content, maxsplit=1)
-    if len(match) < 2:
-        await ctx.send("格式不對喔！請用：`.rts 名稱：項目1,項目2...`")
-        return
-    table_name = match[0].strip()
-    items = [i.strip() for i in match[1].split(',') if i.strip()]
-    if not items:
-        await ctx.send("項目好像是空的？")
-        return
-    tables[table_name] = items
-    await ctx.send(f"✅ 搞定！已紀錄【{table_name}】，共 {len(items)} 個項目。")
-
 # ---------- 其他功能 ----------
 def get_alias(guild_id, user_id):
     for gm in gm_manager.get_gms(guild_id):
@@ -582,6 +567,22 @@ async def handle_dot_command(message, cmd):
         embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`$名稱` - 從表中隨機抽取一項", inline=False)
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
+        return True
+
+    # 處理 .rts 建立抽籤表
+    if cmd.startswith('rts'):
+        content = cmd[3:].strip()
+        match = re.split(r'[：:]', content, maxsplit=1)
+        if len(match) < 2:
+            await message.channel.send("格式不對喔！請用：`.rts 名稱：項目1,項目2...`")
+            return True
+        table_name = match[0].strip()
+        items = [i.strip() for i in match[1].split(',') if i.strip()]
+        if not items:
+            await message.channel.send("項目好像是空的？")
+            return True
+        tables[table_name] = items
+        await message.channel.send(f"✅ 搞定！已紀錄【{table_name}】，共 {len(items)} 個項目。")
         return True
 
     # 多重擲骰 .次數 指令
@@ -950,8 +951,7 @@ async def on_message(message, custom_content=None):
             idx = random.randint(0, count - 1)
             result_item = items[idx]
             await message.channel.send(f"[{idx + 1}] {result_item}")
-            return  # 處理完畢，不再繼續
-        # 若找不到表格，則不回應（或可選擇提示，但保持靜默避免干擾）
+            return
 
     lower_content = content.lower()
     # 無點 help
