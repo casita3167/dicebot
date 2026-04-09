@@ -511,10 +511,19 @@ class TableManager:
         self.data = defaultdict(dict)  # {guild_id: {table_name: [items]}}
         self.load()
     def load(self):
-        if os.path.exists(self.filename):
+        self.data = defaultdict(dict) # 確保一開始就是空的 defaultdict
+        
+        if not os.path.exists(self.filename) or os.path.getsize(self.filename) == 0:
+            return
+
+        try:
             with open(self.filename, 'r', encoding='utf-8') as f:
                 raw = json.load(f)
-                self.data = defaultdict(dict, {int(k): v for k, v in raw.items()})
+                for k, v in raw.items():
+                    # 這裡把讀進來的 dict 塞進 defaultdict，會自動處理型別
+                    self.data[int(k)] = v
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"警告：載入 {self.filename} 失敗 ({e})，使用空資料啟動。")
     def save(self):
         # 將 defaultdict 轉為普通 dict 儲存
         to_save = {str(k): v for k, v in self.data.items()}
