@@ -2,27 +2,9 @@ import discord
 from discord.ext import commands
 import re
 import random
-import ast
 import json
 import os
 from collections import defaultdict
-
-# ---------- 內嵌幫助內容 ----------
-HELP_DATA = {
-    "general": "**一般擲骰**\n`3d6` - 擲3個6面骰\n`d66` - 擲兩個六面骰組成兩位數\n`2b6` - 擲2個6面骰並顯示結果\n`(1d6+5)*2` - 支援表達式計算\n`5 3d6` - 多重擲骰 (最多30次)",
-    "coc": "**CoC 七版檢定**\n`.cc 50` - 普通檢定\n`.cc1 50` - 1個獎勵骰\n`.cc2 50` - 2個獎勵骰\n`.ccn 50` - 1個懲罰骰\n`.ccn1 50` - 1個懲罰骰\n`.ccn2 50` - 2個懲罰骰\n也可用 `.coc` 開頭",
-    "pbta": "**PBTA 擲骰**\n`p 2d6+2 移動名稱` - 2d6+修正，自動判定成功等級",
-    "san": "**SAN 檢定**\n`.sc 目前SAN 成功損失 失敗損失`\n例：`.sc 50 0 1d6`",
-    "int": "**隨機整數**\n`.int 1 100` - 產生1~100之間的整數",
-    "calc": "**計算**\n`.calc 表達式` - 安全計算，支援骰子\n例：`.calc (1d100+5)/2`",
-    "multi": "**多重擲骰**\n`5 3d6` - 擲5次3d6\n`10 cc 50` - 多重CoC檢定",
-    "secret": "**暗骰**\n`dr 3d6` - 私訊結果給自己\n`ddr 3d6` - 私訊結果給自己和GM\n`dddr 3d6` - 僅GM可見",
-    "growth": "**成長檢定**\n`.dp 50 騎乘 60 鬥毆` - 幕間成長檢定（失敗才成長）",
-    "gm": "**GM 管理**\n`.drgm addgm @使用者 [別名]` - 新增GM\n`.drgm list` - 列出GM\n`.drgm remove 編號` - 移除GM\n`.drgm clear` - 清空GM",
-    "cmd": "**自訂指令**\n`.cmd add 關鍵字 回應內容` - 新增\n`.cmd edit 關鍵字 新內容` - 編輯\n`.cmd del 關鍵字` - 刪除\n`.cmd list` - 列出\n`.cmd clear` - 清空\n使用 `.關鍵字` 呼叫",
-    "table": "**抽籤表**\n`.rts 名稱：項目1,項目2,...` - 建立表\n`$名稱` - 隨機抽取一項\n`.rts list` - 列出所有表\n`.rts del 名稱` - 刪除表\n`.rts clear` - 清空",
-    "help": "使用 `.help 分類名` 查看詳細說明，分類有：" + ", ".join([k for k in HELP_DATA.keys() if k != "help"])
-}
 
 # ---------- 安全求值函式 ----------
 def safe_eval(expr_str: str) -> float:
@@ -30,36 +12,27 @@ def safe_eval(expr_str: str) -> float:
     安全地計算只包含數字、基本運算符、括號、** 的表達式。
     回傳計算結果，若表達式不安全或無效則回傳 None。
     """
-    # 允許的字元：數字、空格、基本運算符、括號、點、負號（開頭或運算符後）
-    # 注意：不允許任何字母（除了 e 科學記號，但我們禁止）
     if re.search(r'[^0-9\s\+\-\*\/\(\)\.\*\*]', expr_str):
         return None
-    # 避免連續兩個運算符等危險模式（簡單過濾）
     if re.search(r'[\+\-\*\/]{2,}', expr_str):
         return None
     try:
-        # 限制命名空間，只允許基本數學函數（可選）
         allowed_globals = {
             '__builtins__': {},
             'abs': abs,
             'round': round,
         }
         result = eval(expr_str, allowed_globals, {})
-        # 確保結果為數字
         if isinstance(result, (int, float)):
             return result
         return None
     except Exception:
         return None
 
-def safe_compute_with_dice(expr: str) -> (float, str):
-    """
-    將表達式中的骰子替換為數值，然後用 safe_eval 計算。
-    回傳 (結果, 替換後表達式字串) 或 (None, None)
-    """
+def safe_compute_with_dice(expr: str):
+    """將表達式中的骰子替換為數值，然後用 safe_eval 計算。"""
     def replace_dice(match):
         dice_expr = match.group(0)
-        # 嘗試解析為骰子
         res = parse_dice_expression(dice_expr)
         if res and res.total is not None:
             return str(res.total)
@@ -71,20 +44,17 @@ def safe_compute_with_dice(expr: str) -> (float, str):
                 return str(multi[0])
             return dice_expr
 
-    # 骰子模式（排除表情符號中的數字）
     dice_pattern = re.compile(r'(?<![:<])(\d+[DBU]\d+[Ss]?(?:\s+\d+)?|D66[sn]?|\d+[Dd]\d+\+\d+[Dd]\d+)(?![:>])', re.I)
     replaced = dice_pattern.sub(replace_dice, expr)
-    # 再次處理可能殘留的骰子（如單獨的 3d6）
     replaced = dice_pattern.sub(replace_dice, replaced)
     result = safe_eval(replaced)
     return result, replaced
 
 # ---------- 輔助：移除表情符號 ----------
 def remove_discord_emoji(text: str) -> str:
-    """移除 Discord 自訂表情符號（如 :frog8: 或 <:name:123>）"""
     return re.sub(r'<a?:\w+:\d+>|:\w+:', '', text)
 
-# ---------- 骰子核心函式 ----------
+# ---------- 骰子核心 ----------
 class DiceResult:
     def __init__(self, raw_expr, rolls, total=None, text=None, success=None, details=None, filtered_rolls=None, arithmetic=None):
         self.raw_expr = raw_expr
@@ -291,11 +261,10 @@ def dice_uy(expr):
     for _ in range(count):
         roll_with_bonus()
     total = sum(all_rolls)
-    max_possible = count * sides
     success = None
     if threshold is not None:
         success = sum(1 for r in all_rolls if r > threshold)
-    return DiceResult(expr, all_rolls, total=total, success=success, details={'max': max_possible})
+    return DiceResult(expr, all_rolls, total=total, success=success, details={})
 
 def parse_dice_expression(expr):
     expr = expr.strip()
@@ -588,7 +557,6 @@ async def send_private(ctx_or_msg, user, content, alias_name=None):
 
 # ---------- 獨立路由函式 ----------
 async def handle_coc_roll(message, args, target_type, bonus_dice=0):
-    """處理 CoC 檢定"""
     if not args:
         await send_result(message, "❌ 缺少技能值", title="COC 檢定錯誤", color=0xff0000, target_type=target_type)
         return
@@ -617,7 +585,6 @@ async def handle_coc_roll(message, args, target_type, bonus_dice=0):
     await send_result(message, "\n\n".join(output_lines), title=title, target_type=target_type)
 
 async def handle_pbta_roll(message, args, target_type):
-    """處理 PBTA 檢定"""
     if not args:
         await send_result(message, "請提供骰子表達式，例如：`p 2d6+2`", title="PBTA 格式錯誤", color=0xff0000, target_type=target_type)
         return
@@ -636,7 +603,6 @@ async def handle_pbta_roll(message, args, target_type):
     await send_result(message, content, title="🎲 PBTA 擲骰", target_type=target_type)
 
 async def handle_sc_roll(message, args, target_type):
-    """處理理智檢定"""
     parts = args.split()
     if len(parts) < 3:
         await send_result(message, "格式錯誤，請使用：`目前SAN 成功損失 失敗損失`\n例如：`50 0 1d6`", title="SAN 檢定錯誤", color=0xff0000, target_type=target_type)
@@ -661,7 +627,6 @@ async def handle_sc_roll(message, args, target_type):
     await send_result(message, content, title="🧠 SAN 檢定", color=color, target_type=target_type)
 
 async def handle_int_roll(message, args, target_type):
-    """處理隨機整數"""
     parts = args.split()
     if len(parts) != 2:
         await send_result(message, "格式：`最小 最大`", title="隨機整數錯誤", color=0xff0000, target_type=target_type)
@@ -677,7 +642,6 @@ async def handle_int_roll(message, args, target_type):
         await send_result(message, "請輸入兩個整數", title="隨機整數錯誤", color=0xff0000, target_type=target_type)
 
 async def handle_calc_roll(message, expr, target_type):
-    """處理計算（支援骰子）"""
     if not expr:
         await send_result(message, "請提供表達式，例如：`5+3*2` 或 `(1D100+5)/2`", title="計算錯誤", color=0xff0000, target_type=target_type)
         return
@@ -690,7 +654,6 @@ async def handle_calc_roll(message, expr, target_type):
         await send_result(message, "表達式錯誤，請檢查算式", title="計算錯誤", color=0xff0000, target_type=target_type)
 
 async def send_result(message, content, title=None, color=0x00aaff, target_type='channel'):
-    """統一的結果發送函式"""
     embed = discord.Embed(title=title, description=content, color=color)
     embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
     if target_type == 'channel':
@@ -731,11 +694,9 @@ async def send_result(message, content, title=None, color=0x00aaff, target_type=
             await message.channel.send(embed=discord.Embed(title="❌ 私訊失敗", description="無法私訊給任何 GM，請檢查隱私設定。", color=0xff0000))
 
 async def handle_roll(message, roll_expr, target_type='channel'):
-    """路由函式：根據表達式類型分發到對應處理器"""
     roll_expr = remove_discord_emoji(roll_expr)
     lower_expr = roll_expr.lower().strip()
 
-    # CC / CoC
     cc_match = re.match(r'^(cc|cc[12]|ccn[12]?|coc)(?:\s+(.*))?$', lower_expr, re.I)
     if cc_match:
         cmd_part = cc_match.group(1).lower()
@@ -754,7 +715,6 @@ async def handle_roll(message, roll_expr, target_type='channel'):
         await handle_coc_roll(message, args, target_type, bonus_dice)
         return
 
-    # PBTA
     p_match = re.match(r'^(p|pbta)\s+(2d6[+-]?\d*)(?:\s+(.*))?$', lower_expr, re.I)
     if p_match:
         dice_expr = p_match.group(2)
@@ -762,25 +722,21 @@ async def handle_roll(message, roll_expr, target_type='channel'):
         await handle_pbta_roll(message, f"{dice_expr} {move_name}".strip(), target_type)
         return
 
-    # SC
     sc_match = re.match(r'^sc\s+(.+)$', lower_expr, re.I)
     if sc_match:
         await handle_sc_roll(message, sc_match.group(1), target_type)
         return
 
-    # INT
     int_match = re.match(r'^int\s+(\d+)\s+(\d+)$', lower_expr)
     if int_match:
         await handle_int_roll(message, f"{int_match.group(1)} {int_match.group(2)}", target_type)
         return
 
-    # CALC
     calc_match = re.match(r'^calc\s+(.+)$', lower_expr)
     if calc_match:
         await handle_calc_roll(message, calc_match.group(1), target_type)
         return
 
-    # 一般骰子表達式
     res = parse_dice_expression(roll_expr)
     if res:
         await send_result(message, res.format(), title="🎲 擲骰結果", target_type=target_type)
@@ -797,8 +753,9 @@ async def handle_roll(message, roll_expr, target_type='channel'):
 # ---------- 點命令處理 ----------
 async def handle_dot_command(message, cmd):
     """處理 . 開頭的命令"""
+    # 幫助指令
     if cmd.startswith('help'):
-        await show_help(message, cmd[4:].strip())
+        await send_help_embed(message)
         return True
 
     # 處理 .rts 相關指令
@@ -829,7 +786,6 @@ async def handle_dot_command(message, cmd):
             table_manager.clear_tables(guild_id)
             await message.channel.send("✅ 已清空所有抽籤表")
             return True
-        # 建立表格
         match = re.split(r'[：:]', content, maxsplit=1)
         if len(match) < 2:
             await message.channel.send("格式不對喔！請用：`.rts 名稱：項目1,項目2...` 或 `.rts list` 或 `.rts del 名稱` 或 `.rts clear`")
@@ -1069,27 +1025,27 @@ async def handle_dot_command(message, cmd):
             await message.channel.send(response)
             return True
 
-    # 未知指令
-    await message.channel.send(embed=discord.Embed(title="❓ 未知的點命令", description="輸入 `.help` 查看所有功能。", color=0xff0000))
+    await message.channel.send(embed=discord.Embed(title="❓ 未知的點命令", description="輸入 `help` 或 `.help` 查看所有功能。", color=0xff0000))
     return True
 
-async def show_help(message, category):
-    """顯示幫助，從內置 HELP_DATA 讀取"""
-    if not category:
-        # 顯示所有分類列表
-        embed = discord.Embed(title="📖 D!ce 機器人幫助", color=0x00aaff)
-        categories = [k for k in HELP_DATA.keys() if k != "help"]
-        embed.description = "可用分類：`" + "`, `".join(categories) + "`\n使用 `.help 分類名` 查看詳細說明。"
-        embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
-        await message.channel.send(embed=embed)
-    else:
-        text = HELP_DATA.get(category)
-        if text:
-            embed = discord.Embed(title=f"📖 {category} 幫助", description=text, color=0x00aaff)
-            embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
-            await message.channel.send(embed=embed)
-        else:
-            await message.channel.send(f"❌ 沒有「{category}」這個分類。使用 `.help` 查看所有分類。")
+async def send_help_embed(message):
+    """發送幫助 embed"""
+    embed = discord.Embed(title="📖 D!ce 機器人使用說明", color=0x00aaff)
+    embed.add_field(name="🎲 通用骰子指令", value="`xDy` - 擲 x 粒 y 面骰，例如 `2D6`\n`xDy kh/kl/dh/dl` - 保留/放棄最高/最低骰\n`xDy >= t` - 篩選符合條件的骰子\n`xBy` - 不加總骰子，可加 `S` 排序\n`xUy z` - 獎勵骰系統\n`D66`, `D66s`, `D66n`", inline=False)
+    embed.add_field(name="🔢 多重擲骰", value="`.次數 骰子指令` - 例如 `.5 3D6`（最多30次）", inline=False)
+    embed.add_field(name="➕ 多骰組相加", value="`3d6+1d99+2d4` - 分別計算各組骰子並加總", inline=False)
+    embed.add_field(name="🎯 CoC 七版檢定", value="`.cc 技能值 [技能名稱]`\n`.cc1/cc2` 獎勵骰，`.ccn1/ccn2` 懲罰骰\n支援聯合檢定：`.cc 80,60 鬥毆,魅惑`\n多次檢定：`.10 cc 20`", inline=False)
+    embed.add_field(name="🎲 PBTA 檢定", value="`.p 2d6[+/-修正] [移動名稱]` - 例如 `.p 2d6+2`", inline=False)
+    embed.add_field(name="🧠 理智檢定", value="`.sc 目前SAN 成功損失 失敗損失`", inline=False)
+    embed.add_field(name="📈 成長檢定", value="`.dp 技能值 技能名稱` - 失敗才成長1d10", inline=False)
+    embed.add_field(name="📐 計算功能", value="`.calc 表達式` - 支援骰子\n直接輸入算式：`1d3+2` → `[3]+2=5`", inline=False)
+    embed.add_field(name="🔒 暗骰（私訊）", value="`dr 指令` - 結果私訊給自己\n`ddr 指令` - 私訊給 GM 與自己\n`dddr 指令` - 僅私訊給 GM", inline=False)
+    embed.add_field(name="👑 GM 管理", value="`.drgm addgm [化名]`\n`.drgm show`\n`.drgm del 編號/all`", inline=False)
+    embed.add_field(name="🔧 自訂指令", value="`.cmd add 關鍵字 指令`\n`.cmd 關鍵字`", inline=False)
+    embed.add_field(name="🎲 其他", value="`.int 最小 最大` - 隨機整數\n`.help` - 顯示此說明", inline=False)
+    embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`.rts list` - 查看所有表格\n`.rts del 名稱` - 刪除指定表格\n`.rts clear` - 清空所有表格\n`$名稱` - 從表中隨機抽取一項", inline=False)
+    embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
+    await message.channel.send(embed=embed)
 
 @bot.event
 async def on_message(message, custom_content=None):
@@ -1126,7 +1082,7 @@ async def on_message(message, custom_content=None):
 
     lower_content = clean_content.lower()
     if lower_content == 'help':
-        await show_help(message, "")
+        await send_help_embed(message)
         return
 
     # 暗骰
