@@ -98,8 +98,8 @@ def dice_by(expr):
 
 def dice_d66(subtype=''):
     d1, d2 = roll_dice(6), roll_dice(6)
-    if subtype == 's': rolls, val = sorted([d1, d2]), rolls[0]*10+rolls[1]
-    elif subtype == 'n': rolls, val = sorted([d1, d2], reverse=True), rolls[0]*10+rolls[1]
+    if subtype == 's': rolls, val = sorted([d1, d2]), d1*10+d2
+    elif subtype == 'n': rolls, val = sorted([d1, d2], reverse=True), d1*10+d2
     else: val, rolls = d1*10+d2, [d1, d2]
     return DiceResult(f"D66{subtype}", rolls, total=val)
 
@@ -189,9 +189,59 @@ async def send_private(user, content, alias_name=None, orig_author=None):
     if alias_name and orig_author:
         content = content.replace(orig_author.display_name, alias_name, 1)
     try:
-        await user.create_dm().send(content)
+        dm = await user.create_dm()
+        await dm.send(content)
         return True
-    except: return False
+    except discord.Forbidden:
+        # 使用者禁止私訊
+        return False
+    except Exception as e:
+        # 其他錯誤，可記錄
+        return False
+
+# ---------- 骰表儲存管理 ----------
+class TableManager:
+    def __init__(self, filename='tables_data.json'):
+        self.filename = filename
+        self.data = defaultdict(lambda: defaultdict(list))
+        self.load()
+    def load(self):
+        if os.path.exists(self.filename):
+            with open(self.filename, 'r', encoding='utf-8') as f:
+                raw = json.load(f)
+                self.data = defaultdict(lambda: defaultdict(list))
+                for uid, tables in raw.items():
+                    self.data[int(uid)] = tables
+    def save(self):
+        with open(self.filename, 'w', encoding='utf-8') as f:
+            json.dump({str(k): v for k, v in self.data.items()}, f, ensure_ascii=False, indent=2)
+    def add(self, user_id, name, dice_expr, options):
+        self.data[user_id].append({'name': name, 'dice': dice_expr, 'options': options})
+        self.save()
+    def delete(self, user_id, index):
+        if 0 <= index < len(self.data[user_id]):
+            del self.data[user_id][index]
+            self.save()
+            return True
+        return False
+    def delete_by_name(self, user_id, name):
+        for i, t in enumerate(self.data[user_id]):
+            if t['name'] == name:
+                del self.data[user_id][i]
+                self.save()
+                return True
+        return False
+    def list(self, user_id):
+        return self.data[user_id]
+    def get(self, user_id, index):
+        if 0 <= index < len(self.data[user_id]):
+            return self.data[user_id][index]
+        return None
+    def get_by_name(self, user_id, name):
+        for t in self.data[user_id]:
+            if t['name'] == name:
+                return t
+        return None
 
 # ---------- GM 與自訂指令管理 ----------
 class GMManager:
@@ -231,11 +281,12 @@ class CmdManager:
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
-gm, cmd = GMManager(), CmdManager()
+gm = GMManager()
+cmd = CmdManager()
+table_mgr = TableManager()
 
 # ---------- 暗骰統一處理 ----------
 async def handle_private_roll(message, expr, target):
-    # target: 'self', 'gm', 'gm_only'
     if parse_dice_expression(expr):
         await handle_roll(message, expr, target)
         return
@@ -289,26 +340,46 @@ async def _send_private_result(message, output, target):
     if target == 'self':
         if await send_private(message.author, f"{message.author.display_name} 暗骰：\n{output}", alias, message.author):
             await message.add_reaction('📬')
+        else:
+            await send_embed(message, "❌ 無法私訊給您自己", desc="請檢查您的隱私設定，允許伺服器成員直接訊息。", color=0xff0000)
     elif target == 'gm':
         recipients = set(gms) | {message.author.id}
         ok = 0
         for uid in recipients:
-            user = message.guild.get_member(uid) or await message.guild.fetch_member(uid) if uid!=message.author.id else message.author
-            if user and await send_private(user, f"{message.author.display_name} 暗骰：\n{output}", alias, message.author):
-                ok+=1
-        if ok: await message.add_reaction('📬')
-        else: await send_embed(message, "❌ 私訊失敗", color=0xff0000)
+            if uid == message.author.id:
+                user = message.author
+            else:
+                user = message.guild.get_member(uid)
+                if not user:
+                    try:
+                        user = await message.guild.fetch_member(uid)
+                    except:
+                        continue
+            if user:
+                if await send_private(user, f"{message.author.display_name} 暗骰：\n{output}", alias, message.author):
+                    ok += 1
+        if ok:
+            await message.add_reaction('📬')
+        else:
+            await send_embed(message, "❌ 私訊失敗", desc="可能原因：未設定 GM、GM 關閉私訊、或您未開啟私訊。", color=0xff0000)
     elif target == 'gm_only':
         recipients = set(gms)
         if message.author.id not in gms:
             recipients.discard(message.author.id)
         ok = 0
         for uid in recipients:
-            user = message.guild.get_member(uid) or await message.guild.fetch_member(uid) if uid!=message.author.id else message.author
+            user = message.guild.get_member(uid)
+            if not user:
+                try:
+                    user = await message.guild.fetch_member(uid)
+                except:
+                    continue
             if user and await send_private(user, f"{message.author.display_name} 暗骰：\n{output}", alias, message.author):
-                ok+=1
-        if ok: await message.add_reaction('🔒')
-        else: await send_embed(message, "❌ 私訊失敗", color=0xff0000)
+                ok += 1
+        if ok:
+            await message.add_reaction('🔒')
+        else:
+            await send_embed(message, "❌ 私訊失敗", desc="無法私訊給任何 GM，請確認 GM 已登記且開啟私訊。", color=0xff0000)
 
 async def handle_roll(message, roll_expr, target='channel'):
     res = parse_dice_expression(roll_expr)
@@ -320,78 +391,158 @@ async def handle_roll(message, roll_expr, target='channel'):
     if target == 'channel':
         await message.channel.send(embed=embed)
     elif target == 'self':
-        await send_private(message.author, f"{message.author.display_name} 擲骰：\n{res.format()}", None, message.author)
-        await message.add_reaction('📬')
+        if await send_private(message.author, f"{message.author.display_name} 擲骰：\n{res.format()}", None, message.author):
+            await message.add_reaction('📬')
+        else:
+            await send_embed(message, "❌ 私訊失敗", desc="無法發送私訊給您，請檢查隱私設定。", color=0xff0000)
     elif target == 'gm':
         gms_ids = gm.users(message.guild.id)
         alias = gm.alias(message.guild.id, message.author.id)
+        success = False
         for uid in gms_ids:
-            user = message.guild.get_member(uid) or await message.guild.fetch_member(uid)
-            if user:
-                await send_private(user, f"{message.author.display_name} 擲骰：\n{res.format()}\n(來自 {message.author.display_name})", alias, message.author)
-        await send_private(message.author, f"{message.author.display_name} 擲骰：\n{res.format()}", alias, message.author)
-        await message.add_reaction('📬')
+            user = message.guild.get_member(uid)
+            if not user:
+                try:
+                    user = await message.guild.fetch_member(uid)
+                except:
+                    continue
+            if user and await send_private(user, f"{message.author.display_name} 擲骰：\n{res.format()}\n(來自 {message.author.display_name})", alias, message.author):
+                success = True
+        if await send_private(message.author, f"{message.author.display_name} 擲骰：\n{res.format()}", alias, message.author):
+            success = True
+        if success:
+            await message.add_reaction('📬')
+        else:
+            await send_embed(message, "❌ 私訊失敗", desc="無法私訊給 GM 或您自己。", color=0xff0000)
     elif target == 'gm_only':
         gms_ids = gm.users(message.guild.id)
         recipients = set(gms_ids)
         if message.author.id not in gms_ids:
             recipients.discard(message.author.id)
         alias = gm.alias(message.guild.id, message.author.id)
+        success = False
         for uid in recipients:
-            user = message.guild.get_member(uid) or await message.guild.fetch_member(uid) if uid!=message.author.id else message.author
-            if user:
-                await send_private(user, f"{message.author.display_name} 擲骰：\n{res.format()}\n(僅 GM 可見)", alias, message.author)
-        await message.add_reaction('🔒')
+            user = message.guild.get_member(uid)
+            if not user:
+                try:
+                    user = await message.guild.fetch_member(uid)
+                except:
+                    continue
+            if user and await send_private(user, f"{message.author.display_name} 擲骰：\n{res.format()}\n(僅 GM 可見)", alias, message.author):
+                success = True
+        if success:
+            await message.add_reaction('🔒')
+        else:
+            await send_embed(message, "❌ 私訊失敗", desc="無法私訊給任何 GM。", color=0xff0000)
 
-# ---------- 骰表 ----------
+# ---------- 骰表查詢與儲存 ----------
 async def roll_table(message, args):
-    lines = args.split('\n')
-    first = lines[0].strip()
-    parts = first.split()
-    if len(parts) < 2:
-        await send_embed(message, "❌ 格式錯誤", desc=".rt 骰子 選項1 選項2 ... 或 .rt 骰子\\n1 蘋果\\n2 香蕉", color=0xff0000)
+    parts = args.split(maxsplit=1)
+    if not parts:
+        await send_embed(message, "❌ 格式錯誤", desc=".rt 序號 [骰子] 或 .rt save/list/del", color=0xff0000)
         return
-    dice_expr = parts[0]
-    if len(lines) == 1:
-        opts = parts[1:]
-    else:
+    first = parts[0].lower()
+    rest = parts[1] if len(parts) > 1 else ""
+
+    # 儲存
+    if first == 'save':
+        save_parts = rest.split(maxsplit=1)
+        if len(save_parts) < 2:
+            await send_embed(message, "❌ 格式錯誤", desc=".rt save 名稱 骰子表達式\n然後換行輸入選項（每行一個）", color=0xff0000)
+            return
+        name = save_parts[0]
+        dice_expr = save_parts[1]
+        lines = message.content.strip().split('\n')
+        if len(lines) < 2:
+            await send_embed(message, "❌ 缺少選項", desc="請在下一行開始輸入選項", color=0xff0000)
+            return
         opts = [l.strip() for l in lines[1:] if l.strip()]
-    if not opts:
-        await send_embed(message, "❌ 無選項", color=0xff0000)
+        if not opts:
+            await send_embed(message, "❌ 無選項", color=0xff0000)
+            return
+        mapping = {}
+        auto = 1
+        for opt in opts:
+            m = re.match(r'^(\d+)[:：\s]+(.*)$', opt)
+            if m:
+                mapping[int(m.group(1))] = m.group(2).strip()
+            else:
+                mapping[auto] = opt
+                auto += 1
+        table_mgr.add(message.author.id, name, dice_expr, mapping)
+        await send_embed(message, "✅ 骰表已儲存", desc=f"名稱：{name}\n骰子：{dice_expr}\n選項數：{len(mapping)}", color=0x00aa00)
         return
+
+    # 列表
+    if first == 'list':
+        tables = table_mgr.list(message.author.id)
+        if not tables:
+            await send_embed(message, "📋 您還沒有儲存任何骰表", desc="使用 `.rt save 名稱 骰子` 來儲存", color=0xffaa00)
+            return
+        desc = ""
+        for idx, t in enumerate(tables):
+            desc += f"**{idx}**. {t['name']} - `{t['dice']}` ({len(t['options'])}項)\n"
+        await send_embed(message, "📋 您的骰表列表", desc=desc, footer=message.author.display_name)
+        return
+
+    # 刪除
+    if first == 'del':
+        if not rest:
+            await send_embed(message, "❌ 請提供要刪除的序號或名稱", color=0xff0000)
+            return
+        try:
+            idx = int(rest)
+            if table_mgr.delete(message.author.id, idx):
+                await send_embed(message, "✅ 已刪除骰表", desc=f"序號 {idx}", color=0x00aa00)
+            else:
+                await send_embed(message, "❌ 序號無效", color=0xff0000)
+        except ValueError:
+            if table_mgr.delete_by_name(message.author.id, rest):
+                await send_embed(message, "✅ 已刪除骰表", desc=f"名稱：{rest}", color=0x00aa00)
+            else:
+                await send_embed(message, "❌ 找不到該名稱", color=0xff0000)
+        return
+
+    # 查表：第一個參數為序號
+    try:
+        idx = int(first)
+    except ValueError:
+        await send_embed(message, "❌ 無效的序號", desc="請使用數字序號，或 `.rt save/list/del`", color=0xff0000)
+        return
+
+    tables = table_mgr.list(message.author.id)
+    if not tables or idx >= len(tables) or idx < 0:
+        await send_embed(message, "❌ 序號無效", desc=f"您共有 {len(tables)} 個骰表", color=0xff0000)
+        return
+
+    table = tables[idx]
+    dice_expr = rest if rest else table['dice']
     dice_res = parse_dice_expression(dice_expr)
     if not dice_res or dice_res.total is None:
-        await send_embed(message, "❌ 無效骰子", desc=dice_expr, color=0xff0000)
+        await send_embed(message, "❌ 無效的骰子表達式", desc=dice_expr, color=0xff0000)
         return
+
     val = dice_res.total
-    mapping = {}
-    auto = 1
-    for opt in opts:
-        m = re.match(r'^(\d+)[:：\s]+(.*)$', opt)
-        if m:
-            mapping[int(m.group(1))] = m.group(2).strip()
-        else:
-            mapping[auto] = opt
-            auto += 1
-    if val in mapping:
+    options = table['options']
+    if val in options:
         embed = discord.Embed(title="🎲 骰表結果", color=0x00aaff)
+        embed.add_field(name="骰表", value=table['name'], inline=True)
         embed.add_field(name="擲骰", value=f"{dice_expr} = {val}", inline=True)
-        embed.add_field(name="命中項目", value=mapping[val], inline=True)
+        embed.add_field(name="命中項目", value=options[val], inline=False)
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
     else:
-        await send_embed(message, "❌ 骰值超出範圍", desc=f"骰出 {val}，有效編號 {min(mapping)}～{max(mapping)}", color=0xff0000)
+        await send_embed(message, "❌ 骰值超出範圍", desc=f"骰出 {val}，有效編號 {min(options)}～{max(options)}", color=0xff0000)
 
 # ---------- 點命令處理 ----------
 async def handle_dot_command(message, cmd):
-    # help
     if cmd.startswith('help'):
         await send_embed(message, "📖 D!ce 機器人使用說明", fields=[
             ("🎲 通用骰子", "`xDy`, `kh/kl/dh/dl`, `>=t`\n`xBy` (S排序), `xUy`, `D66`", False),
             ("🔢 多重擲骰", "`.次數 骰子` 如 `.5 3D6`", False),
             ("🎯 CoC 七版", "`.cc 技能值 [名稱]`\n`.cc1/cc2`獎勵 `.ccn1/ccn2`懲罰\n聯合檢定 `.cc 80,60 鬥毆,魅惑`\n多次檢定 `.10 cc 20`", False),
             ("🎲 PBTA", "`.p 2d6[+/-修正] [移動名稱]`", False),
-            ("📋 骰表", "`.rt 1d4 蘋果 香蕉 水蜜桃` 或換行輸入選項", False),
+            ("📋 骰表", "`.rt 序號 [骰子]` - 查已儲存骰表\n`.rt save/list/del` - 管理骰表", False),
             ("🧠 SAN檢定", "`.sc 目前SAN 成功損失 失敗損失`", False),
             ("📈 成長檢定", "`.dp 技能值 名稱` (失敗才成長)", False),
             ("📐 計算", "`.calc 表達式` 或直接 `1d3+2`", False),
@@ -401,15 +552,59 @@ async def handle_dot_command(message, cmd):
             ("🎲 其他", "`.int 最小 最大`, `.help`", False)
         ], footer=message.author.display_name)
         return
+
     # 骰表
     if cmd.startswith(('rt', 'rolltable')):
         await roll_table(message, cmd[2:].strip() if cmd.startswith('rt') else cmd[8:].strip())
         return
+
+    # 快速查表 .rtx
+    if cmd.startswith('rtx'):
+        args = cmd[3:].strip()
+        parts = args.split(maxsplit=1)
+        if not parts:
+            await send_embed(message, "❌ 請提供骰表序號或名稱", color=0xff0000)
+            return
+        identifier = parts[0]
+        dice_override = parts[1] if len(parts) > 1 else None
+        tables = table_mgr.list(message.author.id)
+        if not tables:
+            await send_embed(message, "📋 您尚未儲存任何骰表", desc="使用 `.rt save` 儲存", color=0xffaa00)
+            return
+        try:
+            idx = int(identifier)
+            if 0 <= idx < len(tables):
+                table = tables[idx]
+            else:
+                await send_embed(message, "❌ 序號無效", color=0xff0000)
+                return
+        except ValueError:
+            table = table_mgr.get_by_name(message.author.id, identifier)
+            if not table:
+                await send_embed(message, "❌ 找不到該名稱", color=0xff0000)
+                return
+        dice_expr = dice_override if dice_override else table['dice']
+        dice_res = parse_dice_expression(dice_expr)
+        if not dice_res or dice_res.total is None:
+            await send_embed(message, "❌ 無效骰子表達式", desc=dice_expr, color=0xff0000)
+            return
+        val = dice_res.total
+        options = table['options']
+        if val in options:
+            embed = discord.Embed(title="🎲 骰表結果", color=0x00aaff)
+            embed.add_field(name="骰表", value=table['name'], inline=True)
+            embed.add_field(name="擲骰", value=f"{dice_expr} = {val}", inline=True)
+            embed.add_field(name="命中項目", value=options[val], inline=False)
+            embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
+            await message.channel.send(embed=embed)
+        else:
+            await send_embed(message, "❌ 骰值超出範圍", desc=f"骰出 {val}，有效編號 {min(options)}～{max(options)}", color=0xff0000)
+        return
+
     # 多重擲骰
     mm = re.match(r'^(\d+)\s+(.+)$', cmd)
     if mm:
         times, rest = int(mm.group(1)), mm.group(2).strip()
-        # 多次 CoC
         cc = re.match(r'^(cc(?:[12]?|n[12]?)?)(?:\s+(.*))?$', rest, re.I)
         if cc:
             cmd_part, args = cc.group(1).lower(), cc.group(2) or ""
@@ -449,7 +644,7 @@ async def handle_dot_command(message, cmd):
             else:
                 await send_embed(message, "❌ 多重擲骰失敗", desc=rest, color=0xff0000)
             return
-    # 其他指令
+
     if cmd.startswith('int'):
         p = cmd.split()
         if len(p)==3:
@@ -460,6 +655,7 @@ async def handle_dot_command(message, cmd):
             except: await send_embed(message, "❌ 格式錯誤", desc=".int 最小 最大", color=0xff0000)
         else: await send_embed(message, "❌ 格式錯誤", desc=".int 最小 最大", color=0xff0000)
         return
+
     if cmd.startswith('calc'):
         expr = cmd[4:].strip()
         if not expr:
@@ -480,6 +676,7 @@ async def handle_dot_command(message, cmd):
         except Exception as e:
             await send_embed(message, "❌ 表達式錯誤", desc=str(e), color=0xff0000)
         return
+
     if cmd.startswith(('coc','cc')):
         bonus = 0
         m_ccn = re.match(r'^ccn([12]?)(.*)$', cmd, re.I)
@@ -511,6 +708,7 @@ async def handle_dot_command(message, cmd):
         elif bonus<0: title += f" ({-bonus}懲罰骰)"
         await send_embed(message, title, desc="\n\n".join(out), footer=message.author.display_name)
         return
+
     if cmd.startswith(('pbta','p')):
         rest = cmd[3:].strip() if cmd.startswith('pbta') else cmd[1:].strip()
         if not rest:
@@ -531,6 +729,7 @@ async def handle_dot_command(message, cmd):
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
         return
+
     if cmd.startswith('sc'):
         args = cmd[2:].strip()
         p = args.split()
@@ -554,6 +753,7 @@ async def handle_dot_command(message, cmd):
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
         return
+
     if cmd.startswith('dp') or cmd.startswith('成長檢定') or cmd.startswith('幕間成長'):
         args = cmd[2:].strip() if cmd.startswith('dp') else cmd[4:].strip()
         if not args:
@@ -579,6 +779,7 @@ async def handle_dot_command(message, cmd):
         else:
             await send_embed(message, "❌ 無法解析", color=0xff0000)
         return
+
     if cmd.startswith('drgm'):
         sub = cmd[4:].strip()
         if sub.startswith('addgm'):
@@ -607,6 +808,7 @@ async def handle_dot_command(message, cmd):
             else: await send_embed(message, "❌ 格式錯誤", desc=".drgm del 編號/all", color=0xff0000)
         else: await send_embed(message, "❌ 未知子命令", desc="addgm, show, del", color=0xff0000)
         return
+
     if cmd.startswith('cmd'):
         sub = cmd[3:].strip()
         if sub.startswith('add'):
@@ -644,7 +846,6 @@ async def handle_dot_command(message, cmd):
                     except: await send_embed(message, "❌ 請輸入數字編號或 all", color=0xff0000)
             else: await send_embed(message, "❌ 格式錯誤", desc=".cmd del 編號/all", color=0xff0000)
         else:
-            # 執行關鍵字
             if sub:
                 c = cmd.get(message.guild.id, sub)
                 if not c:
@@ -658,9 +859,11 @@ async def handle_dot_command(message, cmd):
                 else: await send_embed(message, "❌ 找不到關鍵字", color=0xff0000)
             else: await send_embed(message, "❌ 缺少子命令", color=0xff0000)
         return
+
     if cmd.startswith(('ccrt','ccsu','cc7build','cc6build','cc7bg','chase')):
         await send_embed(message, "🚧 開發中", desc=f"指令 {cmd.split()[0]} 敬請期待", color=0xffaa00)
         return
+
     await send_embed(message, "❓ 未知點命令", desc="輸入 .help", color=0xff0000)
 
 @bot.event
@@ -674,11 +877,9 @@ async def on_message(message, custom_content=None):
     content = message.content.strip()
     if not content: return
     low = content.lower()
-    # help 不帶點
     if low == 'help':
         await handle_dot_command(message, 'help')
         return
-    # 暗骰前綴
     if low.startswith('dddr '):
         await handle_private_roll(message, content[5:].strip(), 'gm_only')
         return
@@ -688,7 +889,6 @@ async def on_message(message, custom_content=None):
     if low.startswith('dr '):
         await handle_private_roll(message, content[3:].strip(), 'self')
         return
-    # 不帶點的 cc 和 p
     if re.match(r'^(cc(?:[12]?|n[12]?)?)', content, re.I):
         await handle_dot_command(message, content)
         return
@@ -698,14 +898,12 @@ async def on_message(message, custom_content=None):
     if content.startswith('.'):
         await handle_dot_command(message, content[1:].strip())
         return
-    # 一般骰子
     dice_res = parse_dice_expression(content)
     if dice_res:
         embed = discord.Embed(title="🎲 擲骰結果", description=dice_res.format(), color=0x00aaff)
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
         return
-    # 向後相容骰子+文字
     m = re.match(r'^([0-9]+[DBU][0-9]+[Ss]?(?:\s+\d+)?|D66[sn]?)', content, re.I)
     if m:
         dice_part = m.group(1)
