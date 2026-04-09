@@ -1092,15 +1092,31 @@ async def handle_dot_command(message, cmd):
 
 async def show_help(message, category):
     """顯示幫助，從 help.json 讀取"""
-    if not os.path.exists('help.json'):
-        await message.channel.send("❌ 找不到幫助文件 help.json")
+    # 使用腳本所在目錄的絕對路徑
+    import os, json
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    help_path = os.path.join(base_dir, 'help.json')
+    
+    if not os.path.exists(help_path):
+        await message.channel.send(f"❌ 找不到幫助文件：`{help_path}`")
         return
-    with open('help.json', 'r', encoding='utf-8') as f:
-        help_data = json.load(f)
+    
+    try:
+        with open(help_path, 'r', encoding='utf-8') as f:
+            help_data = json.load(f)
+    except json.JSONDecodeError as e:
+        await message.channel.send(f"❌ help.json 格式錯誤 (第 {e.lineno} 行第 {e.colno} 列)：{e.msg}")
+        return
+    except Exception as e:
+        await message.channel.send(f"❌ 讀取 help.json 失敗：{type(e).__name__}: {e}")
+        return
+
     if not category:
-        # 顯示所有分類列表
         embed = discord.Embed(title="📖 D!ce 機器人幫助", color=0x00aaff)
         categories = list(help_data.keys())
+        if not categories:
+            await message.channel.send("❌ help.json 中沒有任何分類。")
+            return
         embed.description = "可用分類：`" + "`, `".join(categories) + "`\n使用 `.help 分類名` 查看詳細說明。"
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)

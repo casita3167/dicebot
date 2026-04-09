@@ -1,14 +1,14 @@
 ﻿{
-  "general": "**🎲 通用骰子指令**\n`xDy` - 擲 x 粒 y 面骰，例如 `2D6`\n`xDy kh/kl/dh/dl` - 保留/放棄最高/最低骰\n`xDy >= t` - 篩選符合條件的骰子\n`xBy` - 不加總骰子\n`xUy z` - 獎勵骰系統\n`D66`, `D66s`, `D66n`\n\n多重擲骰：`.次數 指令`\n多骰組相加：`3d6+1d99`",
-  "coc": "**CoC 七版檢定**\n`.cc 技能值 [名稱]`\n`.cc1/cc2` 獎勵骰\n`.ccn1/ccn2` 懲罰骰\n支援聯合檢定與多次檢定",
-  "pbta": "**PBTA 檢定**\n`.p 2d6[+/-修正] [移動名稱]`",
-  "san": "**理智檢定**\n`.sc 目前SAN 成功損失 失敗損失`\n例：`.sc 50 0 1d6`",
-  "growth": "**成長檢定**\n`.dp 技能值 技能名稱`",
-  "calc": "**計算功能**\n`.calc 表達式` 支援骰子",
-  "dark": "**暗骰**\n`dr 指令` 私訊自己\n`ddr 指令` 給 GM 與自己\n`dddr 指令` 僅給 GM",
-  "gm": "**GM 管理**\n`.drgm addgm [化名]`\n`.drgm show`\n`.drgm del 編號/all`",
-  "custom": "**自訂指令**\n`.cmd add 關鍵字 指令`\n`.cmd 關鍵字` 執行",
-  "draw": "**抽籤表**\n`.rts 名稱：項目1,項目2`\n`$名稱` 隨機抽取",
+  "general": "**🎲 通用骰子指令**\n`xDy` - 擲骰\n`xDy kh/kl` - 保留最高/最低\n`xUy z` - 獎勵骰\n`D66` - 六面骰組合",
+  "coc": "**CoC 七版檢定**\n`.cc 技能值`\n`.cc1` 獎勵骰 `.ccn1` 懲罰骰",
+  "pbta": "**PBTA 檢定**\n`.p 2d6[+/-修正]`",
+  "san": "**理智檢定**\n`.sc 目前SAN 成功損失 失敗損失`",
+  "growth": "**成長檢定**\n`.dp 技能值 名稱`",
+  "calc": "**計算功能**\n`.calc 表達式`",
+  "dark": "**暗骰**\n`dr` `ddr` `dddr`",
+  "gm": "**GM 管理**\n`.drgm addgm` `.drgm show` `.drgm del`",
+  "custom": "**自訂指令**\n`.cmd add 關鍵字 指令`",
+  "draw": "**抽籤表**\n`.rts 名稱：項目` `$名稱`",
   "int": "**隨機整數**\n`.int 最小 最大`",
-  "other": "**其他**\n`.help 分類名` 查看詳細"
+  "other": "**其他**\n`.help 分類名`"
 }
