@@ -1090,44 +1090,25 @@ async def handle_dot_command(message, cmd):
     await message.channel.send(embed=discord.Embed(title="❓ 未知的點命令", description="輸入 `.help` 查看所有功能。", color=0xff0000))
     return True
 
-async def show_help(message, category):
-    """顯示幫助，從 help.json 讀取"""
-    # 使用腳本所在目錄的絕對路徑
-    import os, json
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    help_path = os.path.join(base_dir, 'help.json')
-    
-    if not os.path.exists(help_path):
-        await message.channel.send(f"❌ 找不到幫助文件：`{help_path}`")
-        return
-    
-    try:
-        with open(help_path, 'r', encoding='utf-8') as f:
-            help_data = json.load(f)
-    except json.JSONDecodeError as e:
-        await message.channel.send(f"❌ help.json 格式錯誤 (第 {e.lineno} 行第 {e.colno} 列)：{e.msg}")
-        return
-    except Exception as e:
-        await message.channel.send(f"❌ 讀取 help.json 失敗：{type(e).__name__}: {e}")
-        return
-
-    if not category:
-        embed = discord.Embed(title="📖 D!ce 機器人幫助", color=0x00aaff)
-        categories = list(help_data.keys())
-        if not categories:
-            await message.channel.send("❌ help.json 中沒有任何分類。")
-            return
-        embed.description = "可用分類：`" + "`, `".join(categories) + "`\n使用 `.help 分類名` 查看詳細說明。"
+# 無點 help
+    if lower_content == 'help':
+        embed = discord.Embed(title="📖 D!ce 機器人使用說明", color=0x00aaff)
+        embed.add_field(name="🎲 通用骰子指令", value="`xDy` - 擲 x 粒 y 面骰，例如 `2D6`\n`xDy kh/kl/dh/dl` - 保留/放棄最高/最低骰\n`xDy >= t` - 篩選符合條件的骰子\n`xBy` - 不加總骰子，可加 `S` 排序\n`xUy z` - 獎勵骰系統\n`D66`, `D66s`, `D66n`", inline=False)
+        embed.add_field(name="🔢 多重擲骰", value="`.次數 骰子指令` - 例如 `.5 3D6`（最多30次）", inline=False)
+        embed.add_field(name="➕ 多骰組相加", value="`3d6+1d99+2d4` - 分別計算各組骰子並加總", inline=False)
+        embed.add_field(name="🎯 CoC 七版檢定", value="`.cc 技能值 [技能名稱]`\n`.cc1/cc2` 獎勵骰，`.ccn1/ccn2` 懲罰骰\n支援聯合檢定：`.cc 80,60 鬥毆,魅惑`\n多次檢定：`.10 cc 20`", inline=False)
+        embed.add_field(name="🎲 PBTA 檢定", value="`.p 2d6[+/-修正] [移動名稱]` - 例如 `.p 2d6+2`", inline=False)
+        embed.add_field(name="🧠 理智檢定", value="`.sc 目前SAN 成功損失 失敗損失`", inline=False)
+        embed.add_field(name="📈 成長檢定", value="`.dp 技能值 技能名稱` - 失敗才成長1d10", inline=False)
+        embed.add_field(name="📐 計算功能", value="`.calc 表達式` - 支援骰子\n直接輸入算式：`1d3+2` → `[3]+2=5`", inline=False)
+        embed.add_field(name="🔒 暗骰（私訊）", value="`dr 指令` - 結果私訊給自己\n`ddr 指令` - 私訊給 GM 與自己\n`dddr 指令` - 僅私訊給 GM", inline=False)
+        embed.add_field(name="👑 GM 管理", value="`.drgm addgm [化名]`\n`.drgm show`\n`.drgm del 編號/all`", inline=False)
+        embed.add_field(name="🔧 自訂指令", value="`.cmd add 關鍵字 指令`\n`.cmd 關鍵字`", inline=False)
+        embed.add_field(name="🎲 其他", value="`.int 最小 最大` - 隨機整數\n`.help` - 顯示此說明", inline=False)
+        embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`.rts list` - 查看所有表格\n`.rts del 名稱` - 刪除指定表格\n`.rts clear` - 清空所有表格\n`$名稱` - 從表中隨機抽取一項", inline=False)
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
-    else:
-        text = help_data.get(category)
-        if text:
-            embed = discord.Embed(title=f"📖 {category} 幫助", description=text, color=0x00aaff)
-            embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
-            await message.channel.send(embed=embed)
-        else:
-            await message.channel.send(f"❌ 沒有「{category}」這個分類。使用 `.help` 查看所有分類。")
+        return
 
 @bot.event
 async def on_message(message, custom_content=None):
