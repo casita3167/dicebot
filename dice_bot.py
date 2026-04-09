@@ -510,10 +510,7 @@ async def send_private(ctx_or_msg, user, content, alias_name=None):
         return False
 
 async def handle_roll(message, roll_expr, target_type='channel'):
-    # 先處理非純骰子的指令（CC, SC, P, DP, INT, CALC）
-    lower_expr = roll_expr.lower().strip()
-    
-    # 定義一個內部輔助函式，用來根據 target_type 發送結果
+    # 定義內部輔助函式，用來根據 target_type 發送結果
     async def send_result(content, title=None, color=0x00aaff, footer=True):
         embed = discord.Embed(title=title, description=content, color=color)
         if footer:
@@ -554,6 +551,8 @@ async def handle_roll(message, roll_expr, target_type='channel'):
                 await message.add_reaction('🔒')
             else:
                 await message.channel.send(embed=discord.Embed(title="❌ 私訊失敗", description="無法私訊給任何 GM，請檢查隱私設定。", color=0xff0000))
+
+    lower_expr = roll_expr.lower().strip()
 
     # ----- CC / CoC 檢定 -----
     cc_match = re.match(r'^(cc|cc[12]|ccn[12]?|coc)(?:\s+(.*))?$', lower_expr, re.I)
@@ -636,7 +635,10 @@ async def handle_roll(message, roll_expr, target_type='channel'):
             await send_result("請使用：`p 2d6[+/-修正] [移動名稱]`", title="PBTA 格式錯誤", color=0xff0000)
             return
         r1, r2, mod, total, result = res
-        content = f"移動：{move_name}\n骰子結果：{r1}+{r2} + {mod} = {total}\n判定結果：{result}" if move_name else f"骰子結果：{r1}+{r2} + {mod} = {total}\n判定結果：{result}"
+        if move_name:
+            content = f"移動：{move_name}\n骰子結果：{r1}+{r2} + {mod} = {total}\n判定結果：{result}"
+        else:
+            content = f"骰子結果：{r1}+{r2} + {mod} = {total}\n判定結果：{result}"
         await send_result(content, title="🎲 PBTA 擲骰")
         return
 
@@ -684,14 +686,13 @@ async def handle_roll(message, roll_expr, target_type='channel'):
         expr = calc_match.group(1)
         embed = compute_expression(expr, message.author)
         if embed:
-            # 重新打包成純文字，因為 send_result 需要字串
             content = embed.description if embed.description else str(embed)
             await send_result(content, title=embed.title, color=embed.color.value if embed.color else 0x00aaff)
         else:
             await send_result("表達式錯誤，請檢查算式", title="計算錯誤", color=0xff0000)
         return
 
-    # ----- 原有的骰子表達式處理（不變）-----
+    # ----- 原有的骰子表達式處理 -----
     # 先嘗試單骰子表達式
     res = parse_dice_expression(roll_expr)
     if res:
@@ -707,59 +708,6 @@ async def handle_roll(message, roll_expr, target_type='channel'):
 
     # 都不是則無效
     await send_result(f"無效的骰子指令：{roll_expr}", title="❌ 錯誤", color=0xff0000)
-
-    # 嘗試多骰組相加 (如 3d6+1d99+2d4)
-    multi = parse_multi_dice(roll_expr)
-    if multi:
-        total, details = multi
-        embed = discord.Embed(title="🎲 多重骰組相加", description=f"{roll_expr}\n{details}", color=0x00aaff)
-        embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
-        if target_type == 'channel':
-            await message.channel.send(embed=embed)
-        elif target_type == 'self':
-            await send_private(message, message.author, f"{message.author.display_name} 擲骰：\n{roll_expr}\n{details}")
-            await message.add_reaction('📬')
-        elif target_type == 'gm':
-            gms = gm_manager.get_gm_users(message.guild.id)
-            if gms:
-                alias = get_alias(message.guild.id, message.author.id)
-                for gm_id in gms:
-                    gm_user = message.guild.get_member(gm_id)
-                    if gm_user:
-                        await send_private(message, gm_user, f"{message.author.display_name} 擲骰：\n{roll_expr}\n{details}", alias_name=alias)
-                await send_private(message, message.author, f"{message.author.display_name} 擲骰：\n{roll_expr}\n{details}", alias_name=alias)
-                await message.add_reaction('📬')
-            else:
-                embed = discord.Embed(title="⚠️ 未設定 GM", description="此伺服器尚未設定 GM，請使用 `.drgm addgm` 登記。", color=0xffaa00)
-                await message.channel.send(embed=embed)
-        elif target_type == 'gm_only':
-            gms = gm_manager.get_gm_users(message.guild.id)
-            recipients_ids = set(gms)
-            if message.author.id not in gms:
-                recipients_ids.discard(message.author.id)
-            success_count = 0
-            alias = get_alias(message.guild.id, message.author.id)
-            for uid in recipients_ids:
-                if uid == message.author.id:
-                    user = message.author
-                else:
-                    try:
-                        user = await message.guild.fetch_member(uid)
-                    except:
-                        user = None
-                if user:
-                    if await send_private(message, user, f"{message.author.display_name} 暗骰：\n{roll_expr}\n{details}", alias_name=alias):
-                        success_count += 1
-            if success_count > 0:
-                await message.add_reaction('🔒')
-            else:
-                embed = discord.Embed(title="❌ 私訊失敗", description="無法私訊給任何 GM，請檢查隱私設定。", color=0xff0000)
-                await message.channel.send(embed=embed)
-        return
-
-    # 都不是則無效
-    embed = discord.Embed(title="❌ 無效的骰子指令", description=roll_expr, color=0xff0000)
-    await message.channel.send(embed=embed)
 
 def compute_expression(expr, author=None):
     """計算數學表達式（支援骰子），成功返回 embed，失敗返回 None"""
