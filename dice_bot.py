@@ -17,18 +17,16 @@ class DiceResult:
         self.success = success
         self.details = details
         self.filtered_rolls = filtered_rolls
-        self.arithmetic = arithmetic  # 例如 "+3" 或 "*2+1"
+        self.arithmetic = arithmetic
 
     def format(self):
         rolls_str = ', '.join(map(str, self.rolls))
-        # 若有算術附加部分且 total 已計算，使用詳細算式格式
         if self.arithmetic and self.total is not None and self.arithmetic.strip():
             sum_rolls = sum(self.rolls)
             base = f"{self.raw_expr}： {sum_rolls}[{rolls_str}]{self.arithmetic} = {self.total}"
             if self.text:
                 base = f"{self.text} {base}"
             return base
-        # 一般格式
         if self.total is not None:
             base = f"{self.raw_expr}：{self.text or ''} {self.total} [{rolls_str}]"
         else:
@@ -103,7 +101,6 @@ def dice_dy(expr):
     total = sum(rolls)
     arithmetic_part = ""
     if '+' in base_expr or '-' in base_expr or '*' in base_expr or '/' in base_expr:
-        # 提取算術部分 (例如 "+3" 或 "*2+1")
         dice_part = f"{count}D{sides}"
         if base_expr.startswith(dice_part):
             arithmetic_part = base_expr[len(dice_part):]
@@ -443,11 +440,30 @@ class CmdManager:
 # ---------- Discord Bot ----------
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='.', intents=intents)
 
 gm_manager = GMManager()
 cmd_manager = CmdManager()
 
+# ---------- 抽籤表功能 ----------
+tables = {}  # 記憶體儲存：{ "名稱": ["項目1", "項目2", ...] }
+
+@bot.command()
+async def rts(ctx, *, content: str):
+    """建立抽籤表，格式：.rts 名稱：項目1,項目2,項目3..."""
+    match = re.split(r'[：:]', content, maxsplit=1)
+    if len(match) < 2:
+        await ctx.send("格式不對喔！請用：`.rts 名稱：項目1,項目2...`")
+        return
+    table_name = match[0].strip()
+    items = [i.strip() for i in match[1].split(',') if i.strip()]
+    if not items:
+        await ctx.send("項目好像是空的？")
+        return
+    tables[table_name] = items
+    await ctx.send(f"✅ 搞定！已紀錄【{table_name}】，共 {len(items)} 個項目。")
+
+# ---------- 其他功能 ----------
 def get_alias(guild_id, user_id):
     for gm in gm_manager.get_gms(guild_id):
         if gm['user_id'] == user_id:
@@ -519,7 +535,6 @@ async def handle_roll(message, roll_expr, target_type='channel'):
             await message.channel.send(embed=embed)
     return
 
-# ---------- 算式計算核心（共用） ----------
 def compute_expression(expr, author=None):
     """計算數學表達式（支援骰子），成功返回 embed，失敗返回 None"""
     def replace_dice(match):
@@ -549,7 +564,6 @@ def compute_expression(expr, author=None):
     except Exception as e:
         return None
 
-# ---------- 點命令處理 ----------
 async def handle_dot_command(message, cmd):
     """處理點命令，回傳 True 表示已處理"""
     if cmd.startswith('help'):
@@ -565,6 +579,7 @@ async def handle_dot_command(message, cmd):
         embed.add_field(name="👑 GM 管理", value="`.drgm addgm [化名]` - 登記為 GM\n`.drgm show` - 顯示 GM 列表\n`.drgm del 編號/all` - 刪除 GM", inline=False)
         embed.add_field(name="🔧 自訂指令", value="`.cmd add 關鍵字 指令` - 例如 `.cmd add 戰鬥 cc 80 鬥毆`\n`.cmd 關鍵字` - 執行自訂指令", inline=False)
         embed.add_field(name="🎲 其他", value="`.int 最小 最大` - 隨機整數\n`.help` - 顯示此說明", inline=False)
+        embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`$名稱` - 從表中隨機抽取一項", inline=False)
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
         return True
@@ -926,6 +941,18 @@ async def on_message(message, custom_content=None):
     if not content:
         return
 
+    # ---------- 抽籤表功能：$名稱 ----------
+    if content.startswith('$'):
+        table_name = content[1:].strip()
+        if table_name in tables:
+            items = tables[table_name]
+            count = len(items)
+            idx = random.randint(0, count - 1)
+            result_item = items[idx]
+            await message.channel.send(f"[{idx + 1}] {result_item}")
+            return  # 處理完畢，不再繼續
+        # 若找不到表格，則不回應（或可選擇提示，但保持靜默避免干擾）
+
     lower_content = content.lower()
     # 無點 help
     if lower_content == 'help':
@@ -941,6 +968,7 @@ async def on_message(message, custom_content=None):
         embed.add_field(name="👑 GM 管理", value="`.drgm addgm [化名]`\n`.drgm show`\n`.drgm del 編號/all`", inline=False)
         embed.add_field(name="🔧 自訂指令", value="`.cmd add 關鍵字 指令`\n`.cmd 關鍵字`", inline=False)
         embed.add_field(name="🎲 其他", value="`.int 最小 最大` - 隨機整數\n`.help` - 顯示此說明", inline=False)
+        embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`$名稱` - 從表中隨機抽取一項", inline=False)
         embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
         await message.channel.send(embed=embed)
         return
@@ -1296,6 +1324,8 @@ async def on_message(message, custom_content=None):
         if embed:
             await message.channel.send(embed=embed)
             return
+
+    await bot.process_commands(message)
 
 if __name__ == "__main__":
     TOKEN = os.getenv('DISCORD_TOKEN')
