@@ -9,7 +9,7 @@ from collections import defaultdict
 
 # ---------- 骰子核心函式 ----------
 class DiceResult:
-    def __init__(self, raw_expr, rolls, total=None, text=None, success=None, details=None, filtered_rolls=None):
+    def __init__(self, raw_expr, rolls, total=None, text=None, success=None, details=None, filtered_rolls=None, arithmetic=None):
         self.raw_expr = raw_expr
         self.rolls = rolls
         self.total = total
@@ -17,9 +17,18 @@ class DiceResult:
         self.success = success
         self.details = details
         self.filtered_rolls = filtered_rolls
+        self.arithmetic = arithmetic  # 例如 "+3" 或 "*2+1"
 
     def format(self):
         rolls_str = ', '.join(map(str, self.rolls))
+        # 若有算術附加部分且 total 已計算，使用詳細算式格式
+        if self.arithmetic and self.total is not None and self.arithmetic.strip():
+            sum_rolls = sum(self.rolls)
+            base = f"{self.raw_expr}： {sum_rolls}[{rolls_str}]{self.arithmetic} = {self.total}"
+            if self.text:
+                base = f"{self.text} {base}"
+            return base
+        # 一般格式
         if self.total is not None:
             base = f"{self.raw_expr}：{self.text or ''} {self.total} [{rolls_str}]"
         else:
@@ -92,7 +101,12 @@ def dice_dy(expr):
         sorted_rolls = sorted(rolls, reverse=drop_low)
         rolls = sorted_rolls[drop:]
     total = sum(rolls)
+    arithmetic_part = ""
     if '+' in base_expr or '-' in base_expr or '*' in base_expr or '/' in base_expr:
+        # 提取算術部分 (例如 "+3" 或 "*2+1")
+        dice_part = f"{count}D{sides}"
+        if base_expr.startswith(dice_part):
+            arithmetic_part = base_expr[len(dice_part):]
         calc_total = evaluate_arithmetic(base_expr, total)
         if calc_total is not None:
             total = calc_total
@@ -117,7 +131,7 @@ def dice_dy(expr):
         elif comp_op == '!=':
             filtered = [r for r in rolls if r != comp_val]
             success = len(filtered)
-    return DiceResult(expr, rolls, total, success=success, filtered_rolls=filtered)
+    return DiceResult(expr, rolls, total, success=success, filtered_rolls=filtered, arithmetic=arithmetic_part)
 
 def dice_by(expr):
     m = re.match(r'^(\d+)B(\d+)([Ss]?)(.*)$', expr, re.I)
@@ -1274,8 +1288,7 @@ async def on_message(message, custom_content=None):
             await message.channel.send(embed=embed)
         return
 
-    # ---------- 新增：直接算式計算 ----------
-    # 如果訊息中包含算術運算符或骰子，嘗試當作算式計算
+    # 直接算式計算（無點前綴）
     has_operator = re.search(r'[+\-*/%]|[\*]{2}|//', content)
     has_dice = re.search(r'\d+[Dd]\d+', content)
     if has_operator or has_dice:
