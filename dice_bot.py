@@ -1234,7 +1234,8 @@ async def on_message(message, custom_content=None):
         await handle_dot_command(message, fake_cmd[1:])
         return
 
-    p_match = re.match(r'^p(?:\s+(2d6[+-]?\d*)?(?:\s+(.*))?)?$', clean_content, re.I)
+    # 1. PbtA 指令 (.p)
+    p_match = re.match(r'^\.p(?:\s+(2d6[+-]?\d*)?(?:\s+(.*))?)?$', clean_content, re.I)
     if p_match:
         dice_part = p_match.group(1) if p_match.group(1) else "2d6"
         move_name = p_match.group(2) if p_match.group(2) else ""
