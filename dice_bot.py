@@ -585,7 +585,6 @@ bot = commands.Bot(command_prefix='.', intents=intents)
 
 gm_manager = GMManager()
 cmd_manager = CmdManager()
-table_manager = TableManager()
 
 # ---------- 其他功能 ----------
 def get_alias(guild_id, user_id):
