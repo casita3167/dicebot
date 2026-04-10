@@ -494,42 +494,93 @@ class CmdManager:
         return list(self.data[guild_id].items())
 
 # ---------- 抽籤表 ----------
+import os
+import json
+from pymongo import MongoClient
+from collections import defaultdict
+
+# ---------- 抽籤表 (MongoDB 雲端版) ----------
 class TableManager:
-    def __init__(self, filename='tables.json'):
-        self.filename = filename
+    def __init__(self, connection_string, db_name='dicebot_db'):
+        """
+        不再使用 filename，改用 MongoDB 連線字串
+        """
         self.data = defaultdict(dict)
-        self.load()
-    def load(self):
-        self.data = defaultdict(dict)
-        if not os.path.exists(self.filename) or os.path.getsize(self.filename) == 0:
+        
+        if not connection_string:
+            print("⚠️ 警告：未設定 MONGO_URI，資料將無法持久保存！")
+            self.client = None
             return
+
         try:
-            with open(self.filename, 'r', encoding='utf-8') as f:
-                raw = json.load(f)
-                for k, v in raw.items():
-                    self.data[int(k)] = v
-        except (json.JSONDecodeError, ValueError) as e:
-            print(f"警告：載入 {self.filename} 失敗 ({e})，使用空資料啟動。")
-    def save(self):
-        to_save = {str(k): v for k, v in self.data.items()}
-        with open(self.filename, 'w', encoding='utf-8') as f:
-            json.dump(to_save, f, ensure_ascii=False, indent=2)
+            # 建立連線
+            self.client = MongoClient(connection_string)
+            self.db = self.client[db_name]
+            self.collection = self.db['draw_tables']
+            # 啟動時自動載入舊資料
+            self.load()
+            print("✅ 抽籤表資料庫連線成功")
+        except Exception as e:
+            print(f"❌ 資料庫連線失敗: {e}")
+            self.client = None
+
+    def load(self):
+        """
+        從 MongoDB 載入資料，對應原始代碼的 load()
+        """
+        if not self.client: return
+        try:
+            self.data = defaultdict(dict)
+            for doc in self.collection.find():
+                # 將資料庫存的字串 ID 轉回 int，保持與原始代碼一致
+                guild_id = int(doc['guild_id'])
+                self.data[guild_id] = doc['tables']
+        except Exception as e:
+            print(f"⚠️ 載入資料失敗: {e}")
+
+    def save(self, guild_id):
+        """
+        將特定伺服器的資料存入 MongoDB，對應原始代碼的 save()
+        但改為只更新有變動的伺服器，效率更高
+        """
+        if not self.client: return
+        try:
+            self.collection.replace_one(
+                {'guild_id': str(guild_id)},
+                {
+                    'guild_id': str(guild_id),
+                    'tables': self.data[guild_id]
+                },
+                upsert=True
+            )
+        except Exception as e:
+            print(f"⚠️ 雲端存檔失敗: {e}")
+
     def add_table(self, guild_id, name, items):
         self.data[guild_id][name] = items
-        self.save()
+        self.save(guild_id) # 呼叫雲端存檔
+
     def get_table(self, guild_id, name):
         return self.data[guild_id].get(name)
+
     def list_tables(self, guild_id):
         return list(self.data[guild_id].items())
+
     def del_table(self, guild_id, name):
         if name in self.data[guild_id]:
             del self.data[guild_id][name]
-            self.save()
+            self.save(guild_id) # 呼叫雲端存檔
             return True
         return False
+
     def clear_tables(self, guild_id):
         self.data[guild_id] = {}
-        self.save()
+        self.save(guild_id) # 呼叫雲端存檔
+
+# --- 初始化執行 ---
+# 讀取環境變數中的 URI
+uri = os.getenv("MONGO_URI")
+manager = TableManager(connection_string=uri)
 
 # ---------- Discord Bot ----------
 intents = discord.Intents.default()
