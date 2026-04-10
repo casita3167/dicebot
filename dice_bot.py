@@ -1144,7 +1144,7 @@ async def on_message(message, custom_content=None):
 
     # 抽籤表功能：$名稱
         # 抽籤表功能：$名稱
-    if clean_content.startswith('$'):
+    if clean_content.startswith('!'):
         table_name = clean_content[1:].strip()
         items = table_manager.get_table(message.guild.id, table_name)
         if items:
@@ -1211,7 +1211,7 @@ async def on_message(message, custom_content=None):
     multi = parse_multi_dice(clean_content)
     if multi:
         total, details = multi
-        await send_result(message, f"{clean_content}\n{details}", title="🎲 多重骰組相加", target_type='channel')
+        await send_result(message, f"{clean_content}\n{details}", title="🎲 多骰組相加", target_type='channel')
         return
 
     # 向後相容：分離骰子部分與附帶文字
