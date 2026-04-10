@@ -721,11 +721,12 @@ async def handle_roll(message, roll_expr, target_type='channel'):
         await handle_coc_roll(message, args, target_type, bonus_dice)
         return
 
-    p_match = re.match(r'^(p|pbta)\s+(2d6[+-]?\d*)(?:\s+(.*))?$', lower_expr, re.I)
+    # 將 ^p 改為 ^\.p
+    p_match = re.match(r'^\.p(?:\s+(2d6[+-]?\d*)?(?:\s+(.*))?)?$', clean_content, re.I)
     if p_match:
-        dice_expr = p_match.group(2)
-        move_name = p_match.group(3) if p_match.group(3) else ""
-        await handle_pbta_roll(message, f"{dice_expr} {move_name}".strip(), target_type)
+        dice_part = p_match.group(1) if p_match.group(1) else "2d6"
+        move_name = p_match.group(2) if p_match.group(2) else ""
+        await handle_pbta_roll(message, f"{dice_part} {move_name}".strip(), 'channel')
         return
 
     sc_match = re.match(r'^sc\s+(.+)$', lower_expr, re.I)
@@ -1116,7 +1117,7 @@ async def send_help_embed(message):
     embed.add_field(name="👑 GM 管理", value="`.drgm addgm [化名]`\n`.drgm show`\n`.drgm del 編號/all`", inline=False)
     embed.add_field(name="🔧 自訂指令", value="`.cmd add 關鍵字 指令`\n`.cmd 關鍵字`", inline=False)
     embed.add_field(name="🎲 其他", value="`.int 最小 最大` - 隨機整數\n`.help` - 顯示此說明", inline=False)
-    embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`.rts list` - 查看所有表格\n`.rts del 名稱` - 刪除指定表格\n`.rts clear` - 清空所有表格\n`$名稱` - 從表中隨機抽取一項", inline=False)
+    embed.add_field(name="📋 抽籤表", value="`.rts 名稱：項目1,項目2,...` - 建立抽籤表\n`.rts list` - 查看所有表格\n`.rts del 名稱` - 刪除指定表格\n`.rts clear` - 清空所有表格\n`!名稱` - 從表中隨機抽取一項", inline=False)
     embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
     await message.channel.send(embed=embed)
 
@@ -1142,8 +1143,8 @@ async def on_message(message, custom_content=None):
 
     clean_content = remove_discord_emoji(content)
 
-    # 抽籤表功能：$名稱
-        # 抽籤表功能：$名稱
+    # 抽籤表功能：!名稱
+        # 抽籤表功能：!名稱
     if clean_content.startswith('!'):
         table_name = clean_content[1:].strip()
         items = table_manager.get_table(message.guild.id, table_name)
