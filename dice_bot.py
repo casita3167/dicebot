@@ -501,19 +501,21 @@ from collections import defaultdict
 
 # ---------- 抽籤表 (MongoDB 雲端版) ----------
 class TableManager:
-    def __init__(self, connection_string, db_name='dicebot_db'):
+    # 這裡加上 =None，這樣呼叫 TableManager() 就不會報錯
+    def __init__(self, connection_string=None, db_name='dicebot_db'):
         """
-        不再使用 filename，改用 MongoDB 連線字串
+        初始化資料庫連線，若無 connection_string 則僅在記憶體運作
         """
         self.data = defaultdict(dict)
+        self.client = None
         
         if not connection_string:
             print("⚠️ 警告：未設定 MONGO_URI，資料將無法持久保存！")
-            self.client = None
             return
 
         try:
             # 建立連線
+            from pymongo import MongoClient # 確保在這裡也能 import
             self.client = MongoClient(connection_string)
             self.db = self.client[db_name]
             self.collection = self.db['draw_tables']
@@ -525,24 +527,16 @@ class TableManager:
             self.client = None
 
     def load(self):
-        """
-        從 MongoDB 載入資料，對應原始代碼的 load()
-        """
         if not self.client: return
         try:
             self.data = defaultdict(dict)
             for doc in self.collection.find():
-                # 將資料庫存的字串 ID 轉回 int，保持與原始代碼一致
                 guild_id = int(doc['guild_id'])
                 self.data[guild_id] = doc['tables']
         except Exception as e:
             print(f"⚠️ 載入資料失敗: {e}")
 
     def save(self, guild_id):
-        """
-        將特定伺服器的資料存入 MongoDB，對應原始代碼的 save()
-        但改為只更新有變動的伺服器，效率更高
-        """
         if not self.client: return
         try:
             self.collection.replace_one(
@@ -558,7 +552,7 @@ class TableManager:
 
     def add_table(self, guild_id, name, items):
         self.data[guild_id][name] = items
-        self.save(guild_id) # 呼叫雲端存檔
+        self.save(guild_id)
 
     def get_table(self, guild_id, name):
         return self.data[guild_id].get(name)
@@ -569,18 +563,20 @@ class TableManager:
     def del_table(self, guild_id, name):
         if name in self.data[guild_id]:
             del self.data[guild_id][name]
-            self.save(guild_id) # 呼叫雲端存檔
+            self.save(guild_id)
             return True
         return False
 
     def clear_tables(self, guild_id):
         self.data[guild_id] = {}
-        self.save(guild_id) # 呼叫雲端存檔
+        self.save(guild_id)
 
-# --- 初始化執行 ---
-# 讀取環境變數中的 URI
+# --- 修正後的初始化執行 ---
+# 從環境變數讀取
 uri = os.getenv("MONGO_URI")
-manager = TableManager(connection_string=uri)
+
+# 確保這裡傳入 uri，即便它是 None 也沒關係，因為 __init__ 有預設值
+table_manager = TableManager(connection_string=uri)
 
 # ---------- Discord Bot ----------
 intents = discord.Intents.default()
