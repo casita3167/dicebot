@@ -54,11 +54,11 @@ def safe_compute_with_dice(expr: str):
 def remove_discord_emoji(text: str) -> str:
     return re.sub(r'<a?:\w+:\d+>|:\w+:', '', text)
 
-# ---------- 新增：檢查是否為有效骰子/算式 ----------
+# ---------- 檢查是否為有效骰子/算式（更嚴格版本）----------
 def looks_like_dice_or_math(text: str) -> bool:
     """
     判斷字串是否應該被當成骰子指令或數學運算處理。
-    防止聊天中的 '...'、'+1'（若不想處理+1可再調整）、'欸...' 誤觸發。
+    防止聊天中的 '...'、'+1'、'欸...' 誤觸發。
     """
     text = text.strip()
     if not text:
@@ -68,11 +68,14 @@ def looks_like_dice_or_math(text: str) -> bool:
     if re.search(r'\d+[dD]\d+', text):
         return True
 
-    # 2. 明顯是數學算式：字串中只允許數字、運算子、括號、空格、小數點、指數符號
-    #    且至少要包含一個數字和一個運算子（避免純數字如 "123" 也回應）
-    allowed_chars = re.compile(r'^[0-9+\-*/%().\s]+$')
-    if allowed_chars.match(text) and re.search(r'\d', text) and re.search(r'[+\-*/%]', text):
-        return True
+    # 2. 明顯是數學算式：
+    #    - 必須以數字或 '(' 開頭（避免 '+1' 被當成算式）
+    #    - 字串中只允許數字、運算子、括號、空格、小數點、指數符號
+    #    - 至少要包含一個數字和一個運算子（避免純數字如 "123" 也回應）
+    if re.match(r'^[0-9(]', text):
+        allowed_chars = re.compile(r'^[0-9+\-*/%().\s]+$')
+        if allowed_chars.match(text) and re.search(r'\d', text) and re.search(r'[+\-*/%]', text):
+            return True
 
     return False
 
