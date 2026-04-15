@@ -54,6 +54,28 @@ def safe_compute_with_dice(expr: str):
 def remove_discord_emoji(text: str) -> str:
     return re.sub(r'<a?:\w+:\d+>|:\w+:', '', text)
 
+# ---------- 新增：檢查是否為有效骰子/算式 ----------
+def looks_like_dice_or_math(text: str) -> bool:
+    """
+    判斷字串是否應該被當成骰子指令或數學運算處理。
+    防止聊天中的 '...'、'+1'（若不想處理+1可再調整）、'欸...' 誤觸發。
+    """
+    text = text.strip()
+    if not text:
+        return False
+
+    # 1. 明顯是骰子格式：必須包含「數字d數字」或「數字D數字」
+    if re.search(r'\d+[dD]\d+', text):
+        return True
+
+    # 2. 明顯是數學算式：字串中只允許數字、運算子、括號、空格、小數點、指數符號
+    #    且至少要包含一個數字和一個運算子（避免純數字如 "123" 也回應）
+    allowed_chars = re.compile(r'^[0-9+\-*/%().\s]+$')
+    if allowed_chars.match(text) and re.search(r'\d', text) and re.search(r'[+\-*/%]', text):
+        return True
+
+    return False
+
 # ---------- 骰子核心 ----------
 class DiceResult:
     def __init__(self, raw_expr, rolls, total=None, text=None, success=None, details=None, filtered_rolls=None, arithmetic=None):
@@ -967,7 +989,7 @@ async def handle_dot_command(message, cmd):
         await development_check(message, args)
         return True
 
-       # drgm 指令
+    # drgm 指令
     if cmd.startswith('drgm'):
         parts = cmd[4:].strip().split()
         if not parts:
@@ -1080,6 +1102,7 @@ async def handle_dot_command(message, cmd):
         else:
             await message.channel.send(embed=discord.Embed(title="❌ 未知子指令", description="可用：addgm, list, remove, clear", color=0xff0000))
         return True
+
     # cmd 指令
     if cmd.startswith('cmd'):
         parts = cmd[3:].strip().split(maxsplit=1)
@@ -1145,7 +1168,7 @@ async def handle_dot_command(message, cmd):
             await message.channel.send(response)
             return True
 
-    await message.channel.send(embed=discord.Embed(title="❓ 未知的點命令", description="輸入 `help` 或 `.help` 查看所有功能。", color=0xff0000))
+    # 未知的 . 命令：直接靜默忽略，不回應任何內容
     return True
 
 async def send_help_embed(message):
@@ -1190,7 +1213,6 @@ async def on_message(message, custom_content=None):
     clean_content = remove_discord_emoji(content)
 
     # 抽籤表功能：!名稱
-        # 抽籤表功能：!名稱
     if clean_content.startswith('!'):
         table_name = clean_content[1:].strip()
         items = table_manager.get_table(message.guild.id, table_name)
@@ -1234,7 +1256,7 @@ async def on_message(message, custom_content=None):
         await handle_dot_command(message, fake_cmd[1:])
         return
 
-    # 1. PbtA 指令 (.p)
+    # PbtA 指令 (.p)
     p_match = re.match(r'^\.p(?:\s+(2d6[+-]?\d*)?(?:\s+(.*))?)?$', clean_content, re.I)
     if p_match:
         dice_part = p_match.group(1) if p_match.group(1) else "2d6"
@@ -1243,13 +1265,24 @@ async def on_message(message, custom_content=None):
         return
 
     if content.startswith('.'):
-        cmd = content[1:].strip()
-        await handle_dot_command(message, cmd)
+        # 可選嚴格過濾：只允許 . 後面跟著字母或數字
+        if re.match(r'^\.[a-zA-Z0-9]|^\.[ ]+[a-zA-Z0-9]', content):
+            cmd = content[1:].strip()
+            await handle_dot_command(message, cmd)
+            return
+        # 否則直接忽略（避免 . 後為符號）
         return
+
     # 避免解析 URL 中的數字
     if re.search(r'https?://', clean_content):
         return
-    
+
+    # ----- 關鍵修改：只在「看起來像骰子或算式」時才繼續處理 -----
+    if not looks_like_dice_or_math(clean_content):
+        # 若不符合，就直接交給 bot 處理（例如其他指令），但不觸發骰子/計算
+        await bot.process_commands(message)
+        return
+
     # 嘗試當作骰子表達式或計算式
     dice_res = parse_dice_expression(clean_content)
     if dice_res is not None:
@@ -1259,7 +1292,7 @@ async def on_message(message, custom_content=None):
     multi = parse_multi_dice(clean_content)
     if multi:
         total, details = multi
-        await send_result(message, f"{clean_content}\n{details}", title="🎲 多骰組相加", target_type='channel')
+        await send_result(message, f"{clean_content}\n{details}", title="🎲 多重骰組相加", target_type='channel')
         return
 
     # 向後相容：分離骰子部分與附帶文字
