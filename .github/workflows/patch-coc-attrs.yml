@@ -1,0 +1,260 @@
+name: Patch CoC attribute commands
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-coc-attrs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch dice_bot.py
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('dice/dice_bot.py')
+          s = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global s
+              count = s.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{label}: expected exactly 1 match, got {count}')
+              s = s.replace(old, new, 1)
+
+          # 1) 共用的角色卡檢定 alias：靈感取 INT、知識取 EDU，但保留顯示名稱。
+          attr_map = """_ROLL20_ATTR_MAP = {
+              'str': '力量', 'dex': '敏捷', 'pow': '意志', 'con': '體質',
+              'app': '外貌', 'edu': '教育', 'siz': '體型', 'int': '智力',
+          }
+          """
+          alias_helper = attr_map + """
+          _PC_CHECK_SPECIAL_ALIASES = {
+              '靈感': ('智力', '靈感'),
+              '知識': ('教育', '知識'),
+              '外表': ('外貌', '外貌'),
+          }
+
+          def resolve_pc_check_alias(name):
+              \"\"\"回傳 (角色卡實際查找名稱, 顯示名稱)。
+              STR/DEX/... 會轉成中文屬性；靈感使用智力值、知識使用教育值，但結果仍顯示靈感/知識。
+              角色卡內原本獨立的 idea 等欄位不受影響。\"\"\"
+              raw = (name or '').strip()
+              special = _PC_CHECK_SPECIAL_ALIASES.get(raw)
+              if special:
+                  return special
+              attr = _ROLL20_ATTR_MAP.get(raw.lower())
+              if attr:
+                  return attr, attr
+              return raw, raw
+
+          """
+          replace_once(attr_map, alias_helper, 'insert check alias helper')
+
+          # 2) .adj 也接受英文基礎屬性縮寫，以及「外表」作為「外貌」同義詞。
+          adj_anchor = """for _label in _PC_ATTR_LABELS:
+              _PC_ADJ_FIELD_MAP[_label] = ('attr', _label)
+          for _key in ('LUK', 'luk', '幸運', 'luck'):
+          """
+          adj_new = """for _label in _PC_ATTR_LABELS:
+              _PC_ADJ_FIELD_MAP[_label] = ('attr', _label)
+          for _key, _label in _ROLL20_ATTR_MAP.items():
+              _PC_ADJ_FIELD_MAP[_key] = ('attr', _label)
+          _PC_ADJ_FIELD_MAP['外表'] = ('attr', '外貌')
+          for _key in ('LUK', 'luk', '幸運', 'luck'):
+          """
+          replace_once(adj_anchor, adj_new, 'extend adj aliases')
+
+          # 3) .cc 的英文屬性與靈感/知識共用 alias；顯示名稱與實際取值名稱分離。
+          cc_alias_old = """            # 英文屬性縮寫別名（str/dex/pow/con/app/edu/siz/int，大小寫不拘）→ 翻成角色卡上的中文屬性名稱
+                      attr_alias = _ROLL20_ATTR_MAP.get(base.lower())
+                      if attr_alias:
+                          base = attr_alias
+          """
+          cc_alias_new = """            # 屬性 alias：英文縮寫轉中文；靈感取智力、知識取教育，但保留原顯示語意。
+                      base, display_base = resolve_pc_check_alias(base)
+          """
+          replace_once(cc_alias_old, cc_alias_new, 'cc alias lookup')
+
+          cc_display_old = """                skill_values.append(skill_lookup[base] + mod)
+                          skill_names.append(f\"{base}{mod:+d}\" if mod else base)
+                          skill_mods.append(mod)
+          """
+          cc_display_new = """                skill_values.append(skill_lookup[base] + mod)
+                          skill_names.append(f\"{display_base}{mod:+d}\" if mod else display_base)
+                          skill_mods.append(mod)
+          """
+          replace_once(cc_display_old, cc_display_new, 'cc alias display')
+
+          # 單次大量 SAN 損失後，.cc 靈感 既然等同 INT，也應能接續瘋狂判定。
+          replace_once(
+              "    if skill_name not in ('智力', 'INT', 'int'):\n",
+              "    if skill_name not in ('智力', 'INT', 'int', '靈感'):\n",
+              'madness int alias',
+          )
+
+          # 4) .dp 純名稱模式：英文屬性同義；靈感用智力、知識用教育。
+          dp_anchor = """    for skill_name in tokens:
+                  if skill_name.lower() in ('luk', 'luck') or skill_name == '幸運':
+          """
+          dp_new = """    for skill_name in tokens:
+                  lookup_name, display_name = resolve_pc_check_alias(skill_name)
+                  if lookup_name in _PC_ATTR_LABELS:
+                      attr_val = card.get('attributes', {}).get(lookup_name)
+                      if attr_val is None:
+                          not_found.append(skill_name)
+                          continue
+                      results.append(_growth_check_line(display_name, attr_val))
+                      continue
+                  if skill_name.lower() in ('luk', 'luck') or skill_name == '幸運':
+          """
+          replace_once(dp_anchor, dp_new, 'dp attribute aliases')
+
+          # 5) 保留 .int 最小 最大 的隨機整數；只有一個參數時交給 INT 屬性快打。
+          int_func_start = s.index('async def _dot_int(message, cmd, cmd_lower):')
+          int_func_end = s.index('\nasync def ', int_func_start + 10)
+          int_func = s[int_func_start:int_func_end]
+          int_anchor = """        parts = cmd.split()
+                  if len(parts) == 3:
+          """
+          if int_anchor not in int_func:
+              raise RuntimeError('dot_int single-arg anchor not found')
+          int_func = int_func.replace(
+              int_anchor,
+              """        parts = cmd.split()
+                  if len(parts) == 2:
+                      # `.int 70` / `.int -1` / `.int -1d6` 是智力快打；`.int 1 100` 仍是隨機整數。
+                      return False
+                  if len(parts) == 3:
+          """,
+              1,
+          )
+          s = s[:int_func_start] + int_func + s[int_func_end:]
+
+          # 6) 基礎屬性快打：.str/.dex/.con/.app/.pow/.int/.siz/.edu。
+          quick_attr_code = r'''
+          _QUICK_ATTR_FIELDS = {
+              'str': ('力量', 'STR'),
+              'dex': ('敏捷', 'DEX'),
+              'con': ('體質', 'CON'),
+              'app': ('外貌', 'APP'),
+              'pow': ('意志', 'POW'),
+              'int': ('智力', 'INT'),
+              'siz': ('體型', 'SIZ'),
+              'edu': ('教育', 'EDU'),
+          }
+
+          async def _dot_quick_attr(message, cmd, cmd_lower):
+              \"\"\"基礎屬性快打：`.pow -1`、`.str +5`、`.int 70`；格式沿用 SAN 快打，也支援 +/-骰式。\"\"\"
+              m = re.match(r'^(str|dex|con|app|pow|int|siz|edu)\\s+(\\S.*)$', cmd, re.I)
+              if not m:
+                  return False
+              key = m.group(1).lower()
+              value_raw = m.group(2).strip()
+              attr_name, code = _QUICK_ATTR_FIELDS[key]
+              guild_id, channel_id, user_id = message.guild.id, message.channel.id, message.author.id
+
+              active_alias, card, error_embed = _lookup_active_card(guild_id, channel_id, user_id)
+              if error_embed:
+                  await message.channel.send(embed=error_embed)
+                  return True
+
+              num, is_relative, roll_note, err = _parse_quick_delta(value_raw)
+              if err:
+                  await message.channel.send(embed=discord.Embed(title=\"❌ 格式錯誤\", description=err, color=0xff0000))
+                  return True
+
+              old_val, new_val = apply_pc_field_adjustment(card, 'attr', attr_name, num, is_relative)
+              pc_card_manager.save_card(guild_id, user_id, active_alias, card)
+              if growth_manager.is_active(guild_id, channel_id, user_id):
+                  growth_manager.record_adjustment(
+                      guild_id, channel_id, user_id, active_alias,
+                      attr_name, old_val, new_val, is_relative, num,
+                  )
+
+              delta_desc = f\"（{'+' if num >= 0 else ''}{num}）\" if is_relative else \"（直接設定）\"
+              lines = []
+              if roll_note:
+                  lines.append(roll_note)
+              lines.append(f\"**{code}／{attr_name}**：{old_val} → {new_val} {delta_desc}\")
+              embed = discord.Embed(
+                  title=f\"📊 「{active_alias}」的 {code}／{attr_name} 已調整\",
+                  description=\"\\n\".join(lines), color=0x00aaff,
+              )
+              embed.set_footer(text=message.author.display_name, icon_url=message.author.display_avatar.url)
+              await message.channel.send(embed=embed)
+              return True
+
+          '''
+          quick_anchor = '# ---------- 介面模式（.DATA 面板） ----------\n'
+          if s.count(quick_anchor) != 1:
+              raise RuntimeError('quick attr insertion anchor mismatch')
+          s = s.replace(quick_anchor, quick_attr_code + '\n' + quick_anchor, 1)
+
+          # 7) 新增頂層 .adj，直接轉送既有 .pc adj，避免複製兩套調整邏輯。
+          pc_anchor = 'async def _dot_pc(message, cmd, cmd_lower):\n'
+          adj_handler = r'''async def _dot_adj(message, cmd, cmd_lower):
+              \"\"\"`.adj 欄位 +/-數值`：頂層角色卡調整指令；舊 `.pc adj` 保留相容。\"\"\"
+              m = re.match(r'^adj(?:\\s+(.*))?$', cmd, re.I | re.S)
+              if not m:
+                  return False
+              rest = (m.group(1) or '').strip()
+              proxy_cmd = 'pc adj' + (f' {rest}' if rest else '')
+              return await _dot_pc(message, proxy_cmd, proxy_cmd.lower())
+
+          '''
+          if s.count(pc_anchor) != 1:
+              raise RuntimeError('dot_pc anchor mismatch')
+          s = s.replace(pc_anchor, adj_handler + pc_anchor, 1)
+
+          # 8) 路由：一般快打後接基礎屬性快打，再接 .adj，最後才進 .pc。
+          route_anchor = """    _dot_data,
+              _dot_quick_stat,
+              _dot_pc,
+          """
+          route_new = """    _dot_data,
+              _dot_quick_stat,
+              _dot_quick_attr,
+              _dot_adj,
+              _dot_pc,
+          """
+          replace_once(route_anchor, route_new, 'dot route')
+
+          # 9) 使用說明改以新入口為主，舊 .pc adj 仍可使用。
+          s = s.replace(
+              '格式：`.pc adj 欄位 +/-數值`（相對增減）或 `.pc adj 欄位 數值`（直接設成該值）',
+              '格式：`.adj 欄位 +/-數值`（相對增減）或 `.adj 欄位 數值`（直接設成該值；舊 `.pc adj` 仍可使用）',
+          )
+          s = s.replace('`.pc adj san -5` 或 `.pc adj 力量 -3 幸運 +2` 或 `.pc adj 偵查 +5`',
+                        '`.san -5` 或 `.pow -1` 或 `.adj 偵查 +5`')
+          s = s.replace('欄位微調可以直接打字，例如 `.pc adj san -5`',
+                        '欄位微調可以直接打字：基礎屬性如 `.pow -1`，一般技能如 `.adj 偵查 +5`')
+
+          path.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Syntax check
+        run: python -m py_compile dice/dice_bot.py
+
+      - name: Commit patched Python and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/patch-coc-attrs.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dice/dice_bot.py .github/workflows/patch-coc-attrs.yml
+          git diff --cached --check
+          git commit -m "feat: add CoC attribute aliases and quick adjustments"
+          git push origin HEAD:main
