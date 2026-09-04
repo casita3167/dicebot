@@ -1,0 +1,1448 @@
+{
+  "1263682713534337136:1299052939972837477:797436395975213077": {
+    "skills": {},
+    "unnamed": {
+      "count": 0,
+      "links": []
+    }
+  },
+  "1263682713534337136:1299052939972837477:407538485466103809": {
+    "skills": {},
+    "unnamed": {
+      "count": 0,
+      "links": []
+    }
+  },
+  "1377674278593626183:1520057687021326426:337632377587105792": {
+    "skills": {},
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1377674278593626183:1520057687021326426:681457647119237126": {
+    "skills": {
+      "偵查": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 42
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1377674278593626183:1520057687021326426:1385953037914345503": {
+    "skills": {
+      "聆聽": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 60
+      },
+      "偵查": {
+        "success": true,
+        "total": 4,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 64
+      },
+      "靈感": {
+        "success": true,
+        "total": 2,
+        "crit_count": 1,
+        "fumble_count": 0,
+        "last_skill_value": 64
+      },
+      "教育": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 84
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1377674278593626183:1520057687021326426:430624643729326080": {
+    "skills": {
+      "偵查": {
+        "success": true,
+        "total": 3,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 70
+      },
+      "教育": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 85
+      },
+      "靈感": {
+        "success": true,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 75
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1263682713534337136:1272407820091920448:797436395975213077": {
+    "skills": {
+      "敏捷": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 55
+      },
+      "威廉開槍呢": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 20
+      },
+      "威廉": {
+        "success": true,
+        "total": 3,
+        "crit_count": 1,
+        "fumble_count": 1,
+        "last_skill_value": 20
+      }
+    },
+    "unnamed": {
+      "count": 5,
+      "links": [
+        "https://discord.com/channels/1263682713534337136/1272407820091920448/1526921854969970748",
+        "https://discord.com/channels/1263682713534337136/1272407820091920448/1526921854969970748",
+        "https://discord.com/channels/1263682713534337136/1272407820091920448/1531222443820060784",
+        "https://discord.com/channels/1263682713534337136/1272407820091920448/1531235913714110694",
+        "https://discord.com/channels/1263682713534337136/1272407820091920448/1531235913714110694"
+      ]
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1263682713534337136:1272407820091920448:603248405635923986": {
+    "skills": {},
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "851123372040388628:988903524639326318:337632377587105792": {
+    "skills": {},
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [
+      {
+        "alias": "藍澤",
+        "field": "閃避",
+        "old": 40,
+        "new": 39,
+        "is_relative": true,
+        "num": -1
+      }
+    ],
+    "madness": {
+      "entries": []
+    }
+  },
+  "851123372040388628:988903524639326318:976457111385038848": {
+    "skills": {},
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1263682713534337136:1376853590487994433:603248405635923986": {
+    "skills": {
+      "#打某某 @使用者": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 50
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1377674278593626183:1519556169717387385:1385953037914345503": {
+    "skills": {
+      "話術": {
+        "success": true,
+        "total": 2,
+        "crit_count": 1,
+        "fumble_count": 0,
+        "last_skill_value": 50
+      },
+      "聆聽": {
+        "success": true,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 60
+      },
+      "圖書館使用": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 60
+      },
+      "靈感": {
+        "success": false,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 1,
+        "last_skill_value": 64
+      },
+      "鬥毆": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 62
+      },
+      "力量": {
+        "success": false,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 49
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 18,
+      "entries": [
+        {
+          "alias": "かち あいき(加地 逢輝)",
+          "roll": 42,
+          "success": true,
+          "loss": 1,
+          "new_san": 43,
+          "link": "https://discord.com/channels/1377674278593626183/1519556169717387385/1528775044988272751"
+        },
+        {
+          "alias": "かち あいき(加地 逢輝)",
+          "roll": 54,
+          "success": false,
+          "loss": 3,
+          "new_san": 40,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528775179914711071"
+        },
+        {
+          "alias": "かち あいき(加地 逢輝)",
+          "roll": 55,
+          "success": false,
+          "loss": 1,
+          "new_san": 39,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528776061448360177"
+        },
+        {
+          "alias": "かち あいき(加地 逢輝)",
+          "roll": 3,
+          "success": true,
+          "loss": 1,
+          "new_san": 38,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528789753728598026"
+        },
+        {
+          "alias": "かち あいき(加地 逢輝)",
+          "roll": 21,
+          "success": true,
+          "loss": 1,
+          "new_san": 37,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1529117839003357358"
+        },
+        {
+          "alias": "かち あいき(加地 逢輝)",
+          "roll": 57,
+          "success": false,
+          "loss": 5,
+          "new_san": 32,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1529121438940925963"
+        },
+        {
+          "alias": "かち あいき(加地 逢輝)",
+          "roll": 84,
+          "success": false,
+          "loss": 6,
+          "new_san": 26,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1529124545024229526"
+        }
+      ]
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1377674278593626183:1519556169717387385:430624643729326080": {
+    "skills": {
+      "教育": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 85
+      },
+      "靈感": {
+        "success": false,
+        "total": 4,
+        "crit_count": 0,
+        "fumble_count": 1,
+        "last_skill_value": 75
+      },
+      "力量": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 1,
+        "last_skill_value": 50
+      },
+      "聆聽": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 50
+      }
+    },
+    "unnamed": {
+      "count": 1,
+      "links": [
+        "https://discord.com/channels/1377674278593626183/1520057687021326426/1529127026836111441"
+      ]
+    },
+    "san_loss": {
+      "total": 15,
+      "entries": [
+        {
+          "alias": "たんない  ひまり(丹內 陽鞠)",
+          "roll": 93,
+          "success": false,
+          "loss": 3,
+          "new_san": 71,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528775250777477182"
+        },
+        {
+          "alias": "たんない  ひまり(丹內 陽鞠)",
+          "roll": 30,
+          "success": true,
+          "loss": 1,
+          "new_san": 70,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528776079240855753"
+        },
+        {
+          "alias": "たんない  ひまり(丹內 陽鞠)",
+          "roll": 48,
+          "success": true,
+          "loss": 1,
+          "new_san": 69,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528791243608297693"
+        },
+        {
+          "alias": "たんない  ひまり(丹內 陽鞠)",
+          "roll": 3,
+          "success": true,
+          "loss": 1,
+          "new_san": 68,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1529117813153992827"
+        },
+        {
+          "alias": "たんない  ひまり(丹內 陽鞠)",
+          "roll": 96,
+          "success": false,
+          "loss": 8,
+          "new_san": 60,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1529121495413166110"
+        },
+        {
+          "alias": "たんない  ひまり(丹內 陽鞠)",
+          "roll": 10,
+          "success": true,
+          "loss": 1,
+          "new_san": 59,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1529124589580325088"
+        }
+      ]
+    },
+    "adjustments": [
+      {
+        "alias": "たんない  ひまり(丹內 陽鞠)",
+        "field": "HP",
+        "old": 10,
+        "new": 9,
+        "is_relative": true,
+        "num": -1
+      },
+      {
+        "alias": "たんない  ひまり(丹內 陽鞠)",
+        "field": "HP",
+        "old": 9,
+        "new": 10,
+        "is_relative": true,
+        "num": 1
+      },
+      {
+        "alias": "たんない  ひまり(丹內 陽鞠)",
+        "field": "HP",
+        "old": 10,
+        "new": 6,
+        "is_relative": true,
+        "num": -4
+      }
+    ],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1377674278593626183:1519556169717387385:681457647119237126": {
+    "skills": {
+      "聆聽": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 36
+      },
+      "靈感": {
+        "success": false,
+        "total": 5,
+        "crit_count": 0,
+        "fumble_count": 1,
+        "last_skill_value": 75
+      },
+      "力量": {
+        "success": false,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 40
+      },
+      "幸運": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 59
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 15,
+      "entries": [
+        {
+          "alias": "さがら ともか(相樂 悠華)",
+          "roll": 3,
+          "success": true,
+          "loss": 1,
+          "new_san": 20,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528775207744049313"
+        },
+        {
+          "alias": "さがら ともか(相樂 悠華)",
+          "roll": 97,
+          "success": false,
+          "loss": 1,
+          "new_san": 19,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528776021623439540"
+        },
+        {
+          "alias": "さがら ともか(相樂 悠華)",
+          "roll": 53,
+          "success": false,
+          "loss": 3,
+          "new_san": 16,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528789775816069120"
+        },
+        {
+          "alias": "さがら ともか(相樂 悠華)",
+          "roll": 68,
+          "success": false,
+          "loss": 10,
+          "new_san": 6,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1529121411799580762"
+        }
+      ]
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1377674278593626183:1519556169717387385:337632377587105792": {
+    "skills": {
+      "教育": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 65
+      },
+      "敏捷": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 1,
+        "last_skill_value": 54
+      },
+      "力量": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 35
+      },
+      "鬥毆": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 25
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 21,
+      "entries": [
+        {
+          "alias": "宮口娟江",
+          "roll": 65,
+          "success": false,
+          "loss": 1,
+          "new_san": 49,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528779033175654430"
+        },
+        {
+          "alias": "宮口娟江",
+          "roll": 5,
+          "success": true,
+          "loss": 1,
+          "new_san": 48,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528779314546606212"
+        },
+        {
+          "alias": "宮口娟江",
+          "roll": 13,
+          "success": true,
+          "loss": 1,
+          "new_san": 47,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1528791340836585574"
+        },
+        {
+          "alias": "宮口娟江",
+          "roll": 67,
+          "success": false,
+          "loss": 4,
+          "new_san": 43,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1529117732304453652"
+        },
+        {
+          "alias": "宮口娟江",
+          "roll": 77,
+          "success": false,
+          "loss": 10,
+          "new_san": 33,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1529121365628813454"
+        },
+        {
+          "alias": "宮口娟江",
+          "roll": 77,
+          "success": false,
+          "loss": 4,
+          "new_san": 29,
+          "link": "https://discord.com/channels/1377674278593626183/1520057687021326426/1529124316598374542"
+        }
+      ]
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1263682713534337136:1288851854196736102:1267325898995007591": {
+    "skills": {},
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "864766953470033941:1098619681578963064:337632377587105792": {
+    "skills": {
+      "鬥毆": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 40
+      },
+      "智力": {
+        "success": false,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 65
+      },
+      "LUK": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 1,
+        "last_skill_value": 70
+      },
+      "體質": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 60
+      },
+      "力量": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 70
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": [
+        {
+          "alias": "藍澤",
+          "roll": 18,
+          "success": true,
+          "loss": 0,
+          "new_san": 37,
+          "link": "https://discord.com/channels/864766953470033941/1104092393839546418/1545066070472400998"
+        }
+      ]
+    },
+    "adjustments": [
+      {
+        "alias": "藍澤",
+        "field": "SAN",
+        "old": 41,
+        "new": 39,
+        "is_relative": true,
+        "num": -2
+      },
+      {
+        "alias": "藍澤",
+        "field": "克蘇魯神話",
+        "old": 22,
+        "new": 24,
+        "is_relative": true,
+        "num": 2
+      },
+      {
+        "alias": "藍澤",
+        "field": "SAN",
+        "old": 39,
+        "new": 33,
+        "is_relative": true,
+        "num": -6
+      },
+      {
+        "alias": "藍澤",
+        "field": "SAN",
+        "old": 33,
+        "new": 35,
+        "is_relative": true,
+        "num": 2
+      },
+      {
+        "alias": "藍澤",
+        "field": "SAN",
+        "old": 35,
+        "new": 37,
+        "is_relative": true,
+        "num": 2
+      }
+    ],
+    "madness": {
+      "entries": []
+    }
+  },
+  "864766953470033941:1098619681578963064:413298225357914112": {
+    "skills": {
+      "luk": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 94
+      },
+      "幸運": {
+        "success": true,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 94
+      },
+      "靈感": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 65
+      },
+      "力量": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 80
+      },
+      "博物學": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 1,
+        "last_skill_value": 10
+      },
+      "偵查": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 71
+      },
+      "急救": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 1,
+        "last_skill_value": 30
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 1,
+      "entries": [
+        {
+          "alias": "吳翰民",
+          "roll": 36,
+          "success": true,
+          "loss": 0,
+          "new_san": 62,
+          "link": "https://discord.com/channels/864766953470033941/1104092393839546418/1542523331423506462"
+        },
+        {
+          "alias": "吳翰民",
+          "roll": 75,
+          "success": false,
+          "loss": 1,
+          "new_san": 61,
+          "link": "https://discord.com/channels/864766953470033941/1104092393839546418/1545066142941323367"
+        }
+      ]
+    },
+    "adjustments": [
+      {
+        "alias": "吳翰民",
+        "field": "LUCK",
+        "old": 93,
+        "new": 94,
+        "is_relative": true,
+        "num": 1
+      },
+      {
+        "alias": "吳翰民",
+        "field": "SAN",
+        "old": 64,
+        "new": 65,
+        "is_relative": true,
+        "num": 1
+      },
+      {
+        "alias": "吳翰民",
+        "field": "SAN",
+        "old": 65,
+        "new": 60,
+        "is_relative": true,
+        "num": -5
+      },
+      {
+        "alias": "吳翰民",
+        "field": "SAN",
+        "old": 60,
+        "new": 61,
+        "is_relative": true,
+        "num": 1
+      },
+      {
+        "alias": "吳翰民",
+        "field": "SAN",
+        "old": 61,
+        "new": 62,
+        "is_relative": true,
+        "num": 1
+      },
+      {
+        "alias": "吳翰民",
+        "field": "LUCK",
+        "old": 94,
+        "new": 88,
+        "is_relative": true,
+        "num": -6
+      },
+      {
+        "alias": "吳翰民",
+        "field": "SAN",
+        "old": 61,
+        "new": 60,
+        "is_relative": true,
+        "num": -1
+      },
+      {
+        "alias": "吳翰民",
+        "field": "SAN",
+        "old": 60,
+        "new": 61,
+        "is_relative": true,
+        "num": 1
+      }
+    ],
+    "madness": {
+      "entries": []
+    }
+  },
+  "864766953470033941:1098619681578963064:407538485466103809": {
+    "skills": {
+      "圖書館使用": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 64
+      },
+      "智力": {
+        "success": false,
+        "total": 1,
+        "crit_count": 1,
+        "fumble_count": 0,
+        "last_skill_value": 70
+      },
+      "luk": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 1,
+        "last_skill_value": 80
+      },
+      "體質": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 65
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 1,
+      "entries": [
+        {
+          "alias": "江文斌",
+          "roll": 60,
+          "success": false,
+          "loss": 0,
+          "new_san": 51,
+          "link": "https://discord.com/channels/864766953470033941/1104092393839546418/1534918132777488514"
+        },
+        {
+          "alias": "江文斌",
+          "roll": 98,
+          "success": false,
+          "loss": 1,
+          "new_san": 54,
+          "link": "https://discord.com/channels/864766953470033941/1104092393839546418/1545066159043510414"
+        }
+      ]
+    },
+    "adjustments": [
+      {
+        "alias": "江文斌",
+        "field": "SAN",
+        "old": 48,
+        "new": 51,
+        "is_relative": true,
+        "num": 3
+      },
+      {
+        "alias": "江文斌",
+        "field": "HP",
+        "old": 13,
+        "new": 10,
+        "is_relative": true,
+        "num": -3
+      },
+      {
+        "alias": "江文斌",
+        "field": "SAN",
+        "old": 51,
+        "new": 49,
+        "is_relative": true,
+        "num": -2
+      },
+      {
+        "alias": "江文斌",
+        "field": "克蘇魯神話",
+        "old": 18,
+        "new": 20,
+        "is_relative": true,
+        "num": 2
+      },
+      {
+        "alias": "江文斌",
+        "field": "SAN",
+        "old": 49,
+        "new": 47,
+        "is_relative": true,
+        "num": -2
+      },
+      {
+        "alias": "江文斌",
+        "field": "LUCK",
+        "old": 78,
+        "new": 80,
+        "is_relative": true,
+        "num": 2
+      },
+      {
+        "alias": "江文斌",
+        "field": "SAN",
+        "old": 47,
+        "new": 50,
+        "is_relative": true,
+        "num": 3
+      },
+      {
+        "alias": "江文斌",
+        "field": "HP",
+        "old": 10,
+        "new": 11,
+        "is_relative": true,
+        "num": 1
+      },
+      {
+        "alias": "江文斌",
+        "field": "SAN",
+        "old": 50,
+        "new": 53,
+        "is_relative": true,
+        "num": 3
+      },
+      {
+        "alias": "江文斌",
+        "field": "SAN",
+        "old": 53,
+        "new": 55,
+        "is_relative": true,
+        "num": 2
+      },
+      {
+        "alias": "江文斌",
+        "field": "LUCK",
+        "old": 80,
+        "new": 83,
+        "is_relative": true,
+        "num": 3
+      },
+      {
+        "alias": "江文斌",
+        "field": "SAN",
+        "old": 54,
+        "new": 53,
+        "is_relative": true,
+        "num": -1
+      },
+      {
+        "alias": "江文斌",
+        "field": "SAN",
+        "old": 53,
+        "new": 54,
+        "is_relative": true,
+        "num": 1
+      }
+    ],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1263682713534337136:1288851854196736102:407538485466103809": {
+    "skills": {},
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "1263682713534337136:1288851854196736102:847099205252153375": {
+    "skills": {},
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "851123372040388628:988903524639326318:603248405635923986": {
+    "skills": {
+      "鬥毆": {
+        "success": true,
+        "total": 5,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 60
+      },
+      "偵查": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 50
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": []
+    },
+    "adjustments": [],
+    "madness": {
+      "entries": []
+    }
+  },
+  "864766953470033941:1098619681578963064:585075420609773573": {
+    "skills": {
+      "智力": {
+        "success": false,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 80
+      },
+      "意志": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 63
+      },
+      "圖書館使用": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 1,
+        "last_skill_value": 40
+      },
+      "體質": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 45
+      },
+      "醫學": {
+        "success": true,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 46
+      },
+      "靈感": {
+        "success": false,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 80
+      }
+    },
+    "unnamed": {
+      "count": 0,
+      "links": []
+    },
+    "san_loss": {
+      "total": 1,
+      "entries": [
+        {
+          "alias": "黐䓦欣",
+          "roll": 97,
+          "success": false,
+          "loss": 1,
+          "new_san": 35,
+          "link": "https://discord.com/channels/864766953470033941/1104092393839546418/1545066498127564880"
+        }
+      ]
+    },
+    "adjustments": [
+      {
+        "alias": "黐䓦欣",
+        "field": "SAN",
+        "old": 35,
+        "new": 34,
+        "is_relative": true,
+        "num": -1
+      },
+      {
+        "alias": "黐䓦欣",
+        "field": "克蘇魯神話",
+        "old": 20,
+        "new": 22,
+        "is_relative": true,
+        "num": 2
+      },
+      {
+        "alias": "黐䓦欣",
+        "field": "意志",
+        "old": 63,
+        "new": 58,
+        "is_relative": true,
+        "num": -5
+      },
+      {
+        "alias": "黐䓦欣",
+        "field": "SAN",
+        "old": 34,
+        "new": 33,
+        "is_relative": true,
+        "num": -1
+      },
+      {
+        "alias": "黐䓦欣",
+        "field": "LUCK",
+        "old": 67,
+        "new": 69,
+        "is_relative": true,
+        "num": 2
+      },
+      {
+        "alias": "黐䓦欣",
+        "field": "LUCK",
+        "old": 69,
+        "new": 75,
+        "is_relative": true,
+        "num": 6
+      },
+      {
+        "alias": "黐䓦欣",
+        "field": "SAN",
+        "old": 33,
+        "new": 36,
+        "is_relative": true,
+        "num": 3
+      },
+      {
+        "alias": "黐䓦欣",
+        "field": "HP",
+        "old": 9,
+        "new": 9,
+        "is_relative": true,
+        "num": 1
+      },
+      {
+        "alias": "黐䓦欣",
+        "field": "SAN",
+        "old": 36,
+        "new": 37,
+        "is_relative": true,
+        "num": 1
+      },
+      {
+        "alias": "黐䓦欣",
+        "field": "SAN",
+        "old": 37,
+        "new": 36,
+        "is_relative": true,
+        "num": -1
+      },
+      {
+        "alias": "黐䓦欣",
+        "field": "SAN",
+        "old": 35,
+        "new": 36,
+        "is_relative": true,
+        "num": 1
+      }
+    ],
+    "madness": {
+      "entries": []
+    }
+  },
+  "864766953470033941:1098619681578963064:603248405635923986": {
+    "skills": {
+      "鬥毆": {
+        "success": true,
+        "total": 4,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 34
+      },
+      "圖書館使用": {
+        "success": true,
+        "total": 1,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 40
+      },
+      "意志": {
+        "success": false,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 58
+      },
+      "luk": {
+        "success": true,
+        "total": 2,
+        "crit_count": 0,
+        "fumble_count": 0,
+        "last_skill_value": 77
+      },
+      "san": {
+        "success": false,
+        "total": 1,
+        "crit_count": 1,
+        "fumble_count": 0,
+        "last_skill_value": 37
+      }
+    },
+    "unnamed": {
+      "count": 1,
+      "links": [
+        "https://discord.com/channels/864766953470033941/1104092393839546418/1542522329102295120"
+      ]
+    },
+    "san_loss": {
+      "total": 0,
+      "entries": [
+        {
+          "alias": "tset",
+          "roll": 39,
+          "success": false,
+          "loss": 0,
+          "new_san": 38,
+          "link": "https://discord.com/channels/864766953470033941/1104092393839546418/1534918078750789672"
+        },
+        {
+          "alias": "tset",
+          "roll": 96,
+          "success": false,
+          "loss": 0,
+          "new_san": 38,
+          "link": "https://discord.com/channels/864766953470033941/1104092393839546418/1534918118198214770"
+        },
+        {
+          "alias": "tset",
+          "roll": 31,
+          "success": true,
+          "loss": 0,
+          "new_san": 37,
+          "link": "https://discord.com/channels/864766953470033941/1104092393839546418/1542523296107724860"
+        }
+      ]
+    },
+    "adjustments": [
+      {
+        "alias": "tset",
+        "field": "LUCK",
+        "old": 67,
+        "new": 68,
+        "is_relative": true,
+        "num": 1
+      },
+      {
+        "alias": "tset",
+        "field": "SAN",
+        "old": 35,
+        "new": 38,
+        "is_relative": true,
+        "num": 3
+      },
+      {
+        "alias": "tset",
+        "field": "HP",
+        "old": 9,
+        "new": 6,
+        "is_relative": true,
+        "num": -3
+      },
+      {
+        "alias": "tset",
+        "field": "HP",
+        "old": 6,
+        "new": 9,
+        "is_relative": true,
+        "num": 3
+      },
+      {
+        "alias": "tset",
+        "field": "克蘇魯神話",
+        "old": 20,
+        "new": 22,
+        "is_relative": true,
+        "num": 2
+      },
+      {
+        "alias": "tset",
+        "field": "意志",
+        "old": 63,
+        "new": 58,
+        "is_relative": true,
+        "num": -5
+      },
+      {
+        "alias": "tset",
+        "field": "SAN",
+        "old": 38,
+        "new": 37,
+        "is_relative": true,
+        "num": -1
+      },
+      {
+        "alias": "tset",
+        "field": "LUCK",
+        "old": 68,
+        "new": 77,
+        "is_relative": true,
+        "num": 9
+      }
+    ],
+    "madness": {
+      "entries": []
+    }
+  }
+}
